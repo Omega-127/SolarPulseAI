@@ -1,6 +1,8 @@
-# Solar Forecast API — Python Dependencies
-# Generated for Python 3.11+
-# Install with:  pip install -r requirements.txt
+# SolarPulse AI — Backend + ML dependencies
+#
+# Recommended: Python 3.11 or 3.12 (best-tested).
+# Python 3.14: use the version ranges below so pip installs prebuilt wheels
+# (older pins like scikit-learn==1.5.2 or pydantic==2.9.x compile from source and fail).
 
 # ── Web Framework ─────────────────────────────────────────────────────────────
 fastapi==0.115.0
@@ -8,55 +10,38 @@ uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 
 # ── Database ──────────────────────────────────────────────────────────────────
-sqlalchemy[asyncio]==2.0.35
-asyncpg==0.29.0
-greenlet==3.1.1
+sqlalchemy[asyncio]>=2.0.35
+asyncpg>=0.29.0
+greenlet>=3.1.1
 
 # ── Pydantic / Settings ───────────────────────────────────────────────────────
-pydantic==2.9.2
-pydantic-settings==2.5.2
-email-validator==2.2.0
+pydantic>=2.9.2
+pydantic-settings>=2.5.2
+email-validator>=2.2.0
 
 # ── Authentication / Security ─────────────────────────────────────────────────
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # ── Data Science / ML ────────────────────────────────────────────────────────
-numpy==1.26.4
-pandas==2.2.3
-scikit-learn==1.5.2
-lightgbm==4.5.0
-
-# ── Solar Physics ─────────────────────────────────────────────────────────────
-pvlib==0.11.1
-
-# ── HTTP Client (for optional NWP adapter) ────────────────────────────────────
-httpx==0.27.2
-# SolarPulse AI - Backend Dependencies
-# ML & Physics Engine Requirements
-
-# Core Scientific Computing
-numpy>=1.26.0
-pandas>=2.1.0
+numpy>=1.26.0,<3
+pandas>=2.2.0
 scipy>=1.11.0
-
-# Solar Physics & Irradiance Decomposition
-pvlib>=0.10.0
-
-# Machine Learning & Gradient Boosting (CPU optimized)
-lightgbm>=4.0.0
-scikit-learn>=1.3.0
+scikit-learn>=1.6.0
+lightgbm>=4.5.0
 joblib>=1.3.0
 
-# Interpretability & Hyperparameter Optimization
-shap>=0.44.0
+# ── Solar Physics ─────────────────────────────────────────────────────────────
+pvlib>=0.11.0
+
+# ── ML training extras ────────────────────────────────────────────────────────
 optuna>=3.4.0
+shap>=0.44.0
 
-# Configuration & Data Validation
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
+# ── HTTP Client (optional NWP adapter) ────────────────────────────────────────
+httpx==0.27.2
 
-# Testing & Quality
+# ── Testing ───────────────────────────────────────────────────────────────────
 pytest>=7.4.0
 pytest-asyncio>=0.23.0
 pytest-cov>=4.1.0
