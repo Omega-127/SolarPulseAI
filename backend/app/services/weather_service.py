@@ -189,42 +189,84 @@ def _parse_hourly_forecast(raw: dict) -> List[WeatherPoint]:
 
 def _mock_weather_data(lat: float, lon: float) -> WeatherData:
     """
-    Return synthetic weather data for local development.
+    Return physics-informed synthetic weather data when WeatherAPI is unavailable.
 
-    Values are plausible daytime conditions for a mid-latitude solar plant.
+    Differentiates conditions based on geographic coordinates:
+    - Longitude determines solar time offset (local daylight cycle)
+    - Latitude & region model climate (arid desert vs. coastal humid vs. plateau)
     """
     now = datetime.now(tz=timezone.utc)
-    hour = now.hour
 
-    is_day = 6 <= hour <= 18
-    uv = max(0.0, 6.0 * math.sin(math.pi * (hour - 6) / 12)) if is_day else 0.0
-    cloud = 20.0
+    # Local solar time derived from longitude (15 deg longitude = 1 hour)
+    solar_offset_hours = lon / 15.0
+    local_solar_hour = (now.hour + (now.minute / 60.0) + solar_offset_hours) % 24.0
+
+    is_day = 6.0 <= local_solar_hour <= 18.0
+    if is_day:
+        sun_fraction = math.sin(math.pi * (local_solar_hour - 6.0) / 12.0)
+        uv = max(0.0, round(8.0 * sun_fraction, 1))
+    else:
+        sun_fraction = 0.0
+        uv = 0.0
+
+    # Regional climate profiling from coordinates
+    # Arid / Desert northwest (e.g. Rajasthan / Gujarat)
+    if lat >= 23.0 and lon <= 74.0:
+        base_temp = 31.0
+        base_humidity = 20.0
+        base_cloud = 8.0
+        base_wind = 14.0
+        cond_text = "Clear / Sunny (Simulated)" if is_day else "Clear Night (Simulated)"
+        loc_desc = f"Desert Sector ({lat:.2f}N, {lon:.2f}E)"
+    # Southern / Coastal humid (e.g. Tamil Nadu, Kerala, Andhra coast)
+    elif lat <= 15.0:
+        base_temp = 28.5
+        base_humidity = 68.0
+        base_cloud = 42.0
+        base_wind = 18.0
+        cond_text = "Partly Cloudy (Simulated)" if is_day else "Passing Clouds (Simulated)"
+        loc_desc = f"Southern Coast ({lat:.2f}N, {lon:.2f}E)"
+    # Central / Deccan Plateau (e.g. MP, Maharashtra, Karnataka interior)
+    else:
+        base_temp = 26.5
+        base_humidity = 50.0
+        base_cloud = 22.0
+        base_wind = 12.0
+        cond_text = "Fair / Clear (Simulated)" if is_day else "Clear (Simulated)"
+        loc_desc = f"Plateau Array ({lat:.2f}N, {lon:.2f}E)"
+
+    # Diurnal temperature swing
+    temp_swing = 6.0 * (sun_fraction if is_day else -0.3)
+    curr_temp = round(base_temp + temp_swing, 1)
 
     current = WeatherPoint(
         timestamp=now,
-        temperature_c=25.0 + 5.0 * math.sin(math.pi * (hour - 6) / 12),
-        humidity_pct=55.0,
-        wind_speed_kph=15.0,
-        cloud_cover_pct=cloud,
+        temperature_c=curr_temp,
+        humidity_pct=round(base_humidity - 5.0 * sun_fraction, 1),
+        wind_speed_kph=round(base_wind + 2.0 * math.sin(local_solar_hour), 1),
+        cloud_cover_pct=round(base_cloud, 1),
         uv_index=uv,
-        condition_text="Partly cloudy (mock)",
+        condition_text=cond_text,
         is_day=is_day,
     )
 
     hourly: List[WeatherPoint] = []
     for delta_h in range(72):
-        fh = (hour + delta_h) % 24
-        fday = 6 <= fh <= 18
-        fuv = max(0.0, 6.0 * math.sin(math.pi * (fh - 6) / 12)) if fday else 0.0
+        fh = (local_solar_hour + delta_h) % 24.0
+        fday = 6.0 <= fh <= 18.0
+        fsun = math.sin(math.pi * (fh - 6.0) / 12.0) if fday else 0.0
+        fuv = max(0.0, round(8.0 * fsun, 1)) if fday else 0.0
+        ftemp = round(base_temp + 6.0 * (fsun if fday else -0.3), 1)
+
         hourly.append(
             WeatherPoint(
                 timestamp=now + timedelta(hours=delta_h),
-                temperature_c=25.0 + 5.0 * math.sin(math.pi * (fh - 6) / 12),
-                humidity_pct=55.0,
-                wind_speed_kph=15.0,
-                cloud_cover_pct=cloud,
+                temperature_c=ftemp,
+                humidity_pct=round(base_humidity - 5.0 * fsun, 1),
+                wind_speed_kph=round(base_wind, 1),
+                cloud_cover_pct=round(base_cloud, 1),
                 uv_index=fuv,
-                condition_text="Partly cloudy (mock)",
+                condition_text=cond_text,
                 is_day=fday,
             )
         )
@@ -232,8 +274,8 @@ def _mock_weather_data(lat: float, lon: float) -> WeatherData:
     return WeatherData(
         latitude=lat,
         longitude=lon,
-        location_name="Mock Location",
-        timezone_id="UTC",
+        location_name=loc_desc,
+        timezone_id="Asia/Kolkata",
         current=current,
         hourly_forecast=hourly,
         source="mock",
