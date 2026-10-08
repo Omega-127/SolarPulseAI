@@ -1,0 +1,44 @@
+"""
+app/schemas/scada.py
+
+Pydantic v2 schemas for SCADA readings.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ScadaReadingCreate(BaseModel):
+    plant_id: int
+    timestamp: datetime
+    power_kw: Optional[float] = Field(default=None, ge=0)
+    irradiance_w_m2: Optional[float] = Field(default=None, ge=0)
+    temperature_c: Optional[float] = None
+    wind_speed_m_s: Optional[float] = Field(default=None, ge=0)
+    module_temperature_c: Optional[float] = None
+    inverter_power_kw: Optional[float] = Field(default=None, ge=0)
+    expected_power_kw: Optional[float] = Field(default=None, ge=0)
+
+
+class ScadaReadingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    plant_id: int
+    timestamp: datetime
+    power_kw: Optional[float] = None
+    irradiance_w_m2: Optional[float] = None
+    temperature_c: Optional[float] = None
+    wind_speed_m_s: Optional[float] = None
+    module_temperature_c: Optional[float] = None
+    inverter_power_kw: Optional[float] = None
+    expected_power_kw: Optional[float] = None
+    created_at: datetime
+
+
+class ScadaBatchCreate(BaseModel):
+    readings: List[ScadaReadingCreate]
