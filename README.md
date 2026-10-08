@@ -153,7 +153,7 @@ Create a `.env` file at the project root (see `.env.example`):
 
 ```env
 # --- Database ---
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/solarpulse
+DATABASE_URL=postgresql+asyncpg://solarpulse:solarpulse_secret@localhost:5432/solarpulse
 
 # --- Auth ---
 JWT_SECRET_KEY=your-super-secret-key
