@@ -281,10 +281,12 @@ function AlertRow({
 
 export default function DashboardPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingPlantData, setLoadingPlantData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -296,9 +298,11 @@ export default function DashboardPage() {
       setAlerts(a);
 
       if (p.length > 0) {
+        const initialId = p[0].id;
+        setSelectedPlantId(initialId);
         const [fc, wx] = await Promise.all([
-          forecastApi.list(p[0].id, 48),
-          weatherApi.current(p[0].id).catch(() => null),
+          forecastApi.list(initialId, 48),
+          weatherApi.current(initialId).catch(() => null),
         ]);
         setForecasts(fc);
         setWeather(wx);
@@ -317,6 +321,23 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleSelectPlant = async (plantId: number) => {
+    setSelectedPlantId(plantId);
+    setLoadingPlantData(true);
+    try {
+      const [fc, wx] = await Promise.all([
+        forecastApi.list(plantId, 48),
+        weatherApi.current(plantId).catch(() => null),
+      ]);
+      setForecasts(fc);
+      setWeather(wx);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingPlantData(false);
+    }
+  };
 
   const handleResolve = async (id: number) => {
     try {
@@ -384,22 +405,51 @@ export default function DashboardPage() {
               <div className="dash-kpi-label">Forecast records</div>
               <div className="dash-kpi-value">{forecasts.length}</div>
               <div className="dash-kpi-sub">
-                {plants.length > 0 ? `for ${plants[0].name}` : "—"}
+                {plants.find((p) => p.id === selectedPlantId)?.name ?? (plants.length > 0 ? plants[0].name : "—")}
               </div>
             </div>
           </div>
 
           <div className="dash-split">
             <div className="dash-card">
-              <div className="dash-card-title">
-                <span>
-                  Yield forecast
+              <div
+                className="dash-card-title"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                  <span>Yield forecast</span>
                   {plants.length > 0 && (
-                    <span className="dash-card-title-meta" style={{ marginLeft: "0.5rem" }}>
-                      {plants[0].name}
-                    </span>
+                    <select
+                      value={selectedPlantId ?? plants[0].id}
+                      onChange={(e) => handleSelectPlant(Number(e.target.value))}
+                      aria-label="Select active solar plant"
+                      className="dash-input"
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        height: "auto",
+                        maxWidth: 260,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {plants.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   )}
-                </span>
+                  {loadingPlantData && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--dash-muted)" }}>Loading…</span>
+                  )}
+                </div>
                 <Link href="/dashboard/forecasts" className="dash-btn dash-btn-ghost dash-btn-sm">
                   Probabilistic view
                 </Link>

@@ -19,7 +19,9 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
       - key: CORS_ORIGINS
-        value: "http://localhost:3000,https://solarpulse-ai.vercel.app"
+        value: "http://localhost:3000,https://solarpulse-ai.vercel.app,https://solar-pulse-ai-one.vercel.app"
+      - key: WEATHER_API_KEY
+        value: "9c059f306a0c49508fe141422260810"
       - key: DATABASE_URL
         fromDatabase:
           name: solarpulse-db
