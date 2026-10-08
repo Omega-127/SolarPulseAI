@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     NWP_API_URL: str = ""
     NWP_API_KEY: str = ""
 
+    # ── WeatherAPI.com ────────────────────────────────────────────────────────
+    # Sign up free at https://www.weatherapi.com/ to get a key.
+    # Leave empty to use built-in mock data (no external calls).
+    WEATHER_API_KEY: str = ""
+    WEATHER_API_BASE_URL: str = "https://api.weatherapi.com/v1"
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_async_db_url(cls, v: str) -> str:
