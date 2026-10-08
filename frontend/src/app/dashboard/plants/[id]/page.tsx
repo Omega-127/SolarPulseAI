@@ -6,11 +6,13 @@ import {
   alertsApi,
   forecastApi,
   plantsApi,
+  weatherApi,
   type Alert,
   type ForecastRecord,
   type ForecastSummary,
   type Plant,
   type PlantConfig,
+  type WeatherData,
 } from "@/lib/api";
 
 // ── SVG Forecast chart (reused here) ──────────────────────────────────────────
@@ -188,6 +190,7 @@ export default function PlantDetailPage({
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
   const [summary, setSummary] = useState<ForecastSummary | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +210,12 @@ export default function PlantDetailPage({
       setSummary(sum);
       setAlerts(al);
 
-      const cfg = await plantsApi.getConfig(plantId).catch(() => null);
+      const [cfg, wx] = await Promise.all([
+        plantsApi.getConfig(plantId).catch(() => null),
+        weatherApi.current(plantId).catch(() => null),
+      ]);
       setConfig(cfg);
+      setWeather(wx);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load plant.");
     } finally {
@@ -360,9 +367,57 @@ export default function PlantDetailPage({
       </div>
 
       {/* Forecast Chart */}
-      <div className="dash-card" style={{ marginBottom: "1.25rem" }}>
-        <div className="dash-card-title">48-Hour Yield Forecast</div>
-        <ForecastChart records={forecasts} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: "1.25rem", marginBottom: "1.25rem" }}>
+        <div className="dash-card">
+          <div className="dash-card-title">48-Hour Yield Forecast</div>
+          <ForecastChart records={forecasts} />
+        </div>
+
+        {/* Live weather sidebar */}
+        <div className="dash-card" style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+            <div className="dash-card-title" style={{ margin: 0 }}>🌤 Live Weather</div>
+            {weather?.source === "mock" && (
+              <span className="dash-badge dash-badge-muted" style={{ fontSize: "0.62rem" }}>mock</span>
+            )}
+          </div>
+
+          {!weather ? (
+            <div className="dash-empty" style={{ padding: "1rem 0" }}>Fetching weather…</div>
+          ) : (() => {
+            const c = weather.current;
+            const row = (icon: string, label: string, val: string, color?: string) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.45rem", padding: "0.4rem 0", borderBottom: "1px solid var(--dash-border)" }}>
+                <span style={{ width: "1.3rem", textAlign: "center", flexShrink: 0 }}>{icon}</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)", flex: 1 }}>{label}</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: color ?? "var(--dash-text)" }}>{val}</span>
+              </div>
+            );
+            return (
+              <>
+                <div style={{ marginBottom: "0.6rem" }}>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--dash-sun)", lineHeight: 1 }}>
+                    {c.temperature_c.toFixed(1)}°C
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--dash-muted)", marginTop: "0.15rem" }}>
+                    {c.condition}
+                  </div>
+                </div>
+                {row("☀️", "Irradiance", `${c.irradiance_w_m2.toFixed(0)} W/m²`, "var(--dash-sun)")}
+                {row("💧", "Humidity", `${c.humidity_pct.toFixed(0)}%`)}
+                {row("☁️", "Cloud", `${c.cloud_cover_pct.toFixed(0)}%`)}
+                {row("💨", "Wind", `${c.wind_speed_kph.toFixed(1)} km/h`)}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", padding: "0.4rem 0" }}>
+                  <span style={{ width: "1.3rem", textAlign: "center", flexShrink: 0 }}>🔆</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)", flex: 1 }}>UV Index</span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: c.uv_index >= 6 ? "var(--dash-warning)" : "var(--dash-text)" }}>
+                    {c.uv_index.toFixed(1)}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       <div className="dash-two-col">
