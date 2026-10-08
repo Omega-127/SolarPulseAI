@@ -213,6 +213,56 @@ export interface Alert {
   created_at: string;
 }
 
+export interface TechnicianStep {
+  step_number: number;
+  action: string;
+  required_tools: string[];
+  safety_note?: string | null;
+}
+
+export interface DiagnosisResponse {
+  id?: number | null;
+  plant_id: number;
+  plant_name?: string | null;
+  alert_id?: number | null;
+  timestamp: string;
+  root_cause_category: string;
+  root_cause_title: string;
+  confidence_score: number;
+  inverter_error_code?: string | null;
+  estimated_loss_kw: number;
+  financial_impact_per_day: number;
+  urgency_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | string;
+  summary: string;
+  root_cause_details: string;
+  technician_steps: TechnicianStep[];
+  safety_warning?: string | null;
+  preventative_advice?: string | null;
+  telemetry_evidence?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface DiagnosisRequest {
+  plant_id: number;
+  alert_id?: number;
+  inverter_error_code?: string;
+  expected_power_kw?: number;
+  actual_power_kw?: number;
+  irradiance_w_m2?: number;
+  temperature_c?: number;
+  module_temp_c?: number;
+  days_since_cleaning?: number;
+  notes?: string;
+}
+
+export interface RootCauseTaxonomyItem {
+  category: string;
+  title: string;
+  common_error_codes: string[];
+  description: string;
+  typical_urgency: string;
+}
+
 // ── Plant endpoints ────────────────────────────────────────────────────────────
 
 export const plantsApi = {
@@ -258,6 +308,21 @@ export const alertsApi = {
     apiFetch<Alert>(`/api/v1/alerts/${alertId}/resolve`, {
       method: "PATCH",
     }),
+};
+
+// ── Diagnosis endpoints ────────────────────────────────────────────────────────
+
+export const diagnosisApi = {
+  getTaxonomy: () => apiFetch<RootCauseTaxonomyItem[]>("/api/v1/diagnosis/taxonomy"),
+  diagnose: (data: DiagnosisRequest) =>
+    apiFetch<DiagnosisResponse>("/api/v1/diagnosis/diagnose", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  diagnoseAlert: (alertId: number) =>
+    apiFetch<DiagnosisResponse>(`/api/v1/diagnosis/alert/${alertId}`),
+  listByPlant: (plantId: number, limit = 50) =>
+    apiFetch<DiagnosisResponse[]>(`/api/v1/diagnosis/plant/${plantId}?limit=${limit}`),
 };
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────

@@ -325,7 +325,7 @@ Model artefacts are versioned under `backend/ml/artifacts/models/` and served vi
 - [x] Probabilistic P10/P50/P90 forecasting & ramp-risk indicators
 - [ ] Co-located BESS charge/discharge optimization
 - [ ] Multi-model ensemble (XGBoost + LightGBM + DeepAR)
-- [ ] Automated root-cause diagnosis from inverter error codes
+- [x] Automated root-cause diagnosis from inverter error codes
 - [ ] Market-aware BESS dispatch with real-time grid pricing
 - [ ] Multi-site fleet management console
 
