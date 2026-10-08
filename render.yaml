@@ -30,4 +30,4 @@ databases:
     plan: free
     region: oregon
     databaseName: solar_forecast
-    user: postgres
+    user: solarpulse
