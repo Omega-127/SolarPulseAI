@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { getCurrentUser, isLoggedIn, logout } from "@/lib/api";
 
 const navItems = [
-  { label: "Overview", href: "/dashboard", icon: "⬡" },
-  { label: "Plants", href: "/dashboard/plants", icon: "◈" },
-  { label: "Forecasts", href: "/dashboard/forecasts", icon: "◌" },
-  { label: "Alerts", href: "/dashboard/alerts", icon: "⚠" },
+  { label: "Overview", href: "/dashboard", index: "01" },
+  { label: "Plants", href: "/dashboard/plants", index: "02" },
+  { label: "Forecasts", href: "/dashboard/forecasts", index: "03" },
+  { label: "Alerts", href: "/dashboard/alerts", index: "04" },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -27,13 +27,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <div className="dash-root">
-      {/* ── Sidebar ── */}
+    <div className="dash-root site-grid">
       <aside className={`dash-sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="dash-sidebar-header">
           <Link href="/dashboard" className="dash-logo">
-            <span className="dash-logo-icon">☀</span>
-            <span>SolarPulse AI</span>
+            <span>Operations</span>
+            SolarPulse AI
           </Link>
           <button
             className="dash-close-btn"
@@ -57,7 +56,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 className={`dash-nav-item${active ? " active" : ""}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <span className="dash-nav-icon">{item.icon}</span>
+                <span className="dash-nav-index">{item.index}</span>
                 {item.label}
               </Link>
             );
@@ -71,7 +70,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="dash-user-info">
               <span className="dash-user-name">{user ?? "Operator"}</span>
-              <span className="dash-user-role">Plant Operator</span>
+              <span className="dash-user-role">Plant operator</span>
             </div>
           </div>
           <button className="dash-logout" onClick={logout}>
@@ -80,7 +79,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Overlay (mobile) ── */}
       {sidebarOpen && (
         <div
           className="dash-overlay"
@@ -88,7 +86,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* ── Main ── */}
       <div className="dash-main">
         <header className="dash-topbar">
           <button

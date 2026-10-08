@@ -45,16 +45,15 @@ export default function NewPlantPage() {
 
   return (
     <>
-      <div style={{ marginBottom: "1.75rem" }}>
-        <h1 className="dash-section-title" style={{ marginBottom: "0.25rem" }}>
-          Add New Plant
-        </h1>
-        <p style={{ color: "var(--dash-muted)", fontSize: "0.88rem" }}>
-          Register a solar generation site with its physical parameters.
+      <div className="dash-page-header">
+        <p className="dash-eyebrow">Sites</p>
+        <h1 className="dash-section-title">Add plant</h1>
+        <p className="dash-page-sub">
+          Register a solar site with its physical parameters.
         </p>
       </div>
 
-      {error && <div className="dash-error">⚠ {error}</div>}
+      {error && <div className="dash-error">{error}</div>}
 
       <div className="dash-card" style={{ maxWidth: 720 }}>
         <form onSubmit={onSubmit}>

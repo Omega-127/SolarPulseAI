@@ -15,12 +15,11 @@ import {
   type WeatherData,
 } from "@/lib/api";
 
-// ── SVG Forecast chart (reused here) ──────────────────────────────────────────
 function ForecastChart({ records }: { records: ForecastRecord[] }) {
   if (records.length < 2) {
     return (
       <div className="dash-empty" style={{ padding: "2rem 0" }}>
-        No forecast data yet. Click &ldquo;Run Forecast&rdquo; above to generate one.
+        No forecast data yet. Run a forecast above to generate one.
       </div>
     );
   }
@@ -101,82 +100,132 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
       >
         <defs>
           <linearGradient id="areaGrad2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--dash-accent)" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="var(--dash-accent)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--field)" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="var(--field)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
         {yLabels.map(({ y, label }) => (
           <g key={label}>
-            <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
-              stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-            <text x={PAD.left - 7} y={y + 4} textAnchor="end" fontSize="10"
-              fill="rgba(122,158,133,0.8)">{label}</text>
+            <line
+              x1={PAD.left}
+              y1={y}
+              x2={W - PAD.right}
+              y2={y}
+              stroke="var(--line)"
+              strokeWidth="1"
+            />
+            <text
+              x={PAD.left - 7}
+              y={y + 4}
+              textAnchor="end"
+              fontSize="10"
+              fill="var(--muted)"
+            >
+              {label}
+            </text>
           </g>
         ))}
 
         {xLabels.map(({ x, label }) => (
-          <text key={label + x} x={x} y={H - 6} textAnchor="middle" fontSize="10"
-            fill="rgba(122,158,133,0.8)">{label}</text>
+          <text
+            key={label + x}
+            x={x}
+            y={H - 6}
+            textAnchor="middle"
+            fontSize="10"
+            fill="var(--muted)"
+          >
+            {label}
+          </text>
         ))}
 
-        <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={H - PAD.bottom}
-          stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-        <line x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom}
-          stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+        <line
+          x1={PAD.left}
+          y1={PAD.top}
+          x2={PAD.left}
+          y2={H - PAD.bottom}
+          stroke="var(--line)"
+          strokeWidth="1"
+        />
+        <line
+          x1={PAD.left}
+          y1={H - PAD.bottom}
+          x2={W - PAD.right}
+          y2={H - PAD.bottom}
+          stroke="var(--line)"
+          strokeWidth="1"
+        />
 
-        {/* Confidence band */}
-        <path d={bandPath} fill="rgba(61,189,110,0.1)" />
-
-        {/* Predicted area fill */}
+        <path d={bandPath} fill="rgba(26,58,42,0.08)" />
         <path
           d={`${predictedPath} L${xScale(sorted.length - 1)},${yScale(minV)} L${xScale(0)},${yScale(minV)} Z`}
           fill="url(#areaGrad2)"
         />
-
-        {/* Predicted line */}
-        <path d={predictedPath} fill="none" stroke="var(--dash-accent)"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
-        {/* Actual line */}
+        <path
+          d={predictedPath}
+          fill="none"
+          stroke="var(--field)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         {actualPath && (
-          <path d={actualPath} fill="none" stroke="var(--dash-sun)"
-            strokeWidth="1.5" strokeDasharray="5 3" strokeLinecap="round" />
+          <path
+            d={actualPath}
+            fill="none"
+            stroke="var(--sun)"
+            strokeWidth="1.5"
+            strokeDasharray="5 3"
+            strokeLinecap="round"
+          />
         )}
       </svg>
 
-      <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.5rem" }}>
-        <LegendDot color="var(--dash-accent)" label="Predicted (kW)" />
+      <div className="dash-legend">
+        <LegendDot color="var(--field)" label="Predicted (kW)" />
         {actuals.some((a) => a !== null) && (
-          <LegendDot color="var(--dash-sun)" label="Actual (kW)" dashed />
+          <LegendDot color="var(--sun)" label="Actual (kW)" dashed />
         )}
-        <LegendDot color="rgba(61,189,110,0.5)" label="Confidence band" band />
+        <LegendDot color="rgba(26,58,42,0.35)" label="Confidence band" band />
       </div>
     </div>
   );
 }
 
 function LegendDot({
-  color, label, dashed, band,
+  color,
+  label,
+  dashed,
+  band,
 }: {
-  color: string; label: string; dashed?: boolean; band?: boolean;
+  color: string;
+  label: string;
+  dashed?: boolean;
+  band?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+    <div className="dash-legend-item">
       {band ? (
-        <div style={{ width: 20, height: 10, background: color, borderRadius: 2 }} />
+        <div style={{ width: 20, height: 10, background: color, borderRadius: 1 }} />
       ) : (
         <svg width="20" height="10">
-          <line x1="0" y1="5" x2="20" y2="5" stroke={color} strokeWidth="2"
-            strokeDasharray={dashed ? "5 3" : "none"} />
+          <line
+            x1="0"
+            y1="5"
+            x2="20"
+            y2="5"
+            stroke={color}
+            strokeWidth="2"
+            strokeDasharray={dashed ? "5 3" : "none"}
+          />
         </svg>
       )}
-      <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)" }}>{label}</span>
+      <span>{label}</span>
     </div>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function PlantDetailPage({
   params,
 }: {
@@ -264,7 +313,7 @@ export default function PlantDetailPage({
     return (
       <div className="dash-error">
         Plant not found.{" "}
-        <Link href="/dashboard/plants" style={{ color: "var(--dash-accent)" }}>
+        <Link href="/dashboard/plants" className="dash-link-inline">
           Back to plants
         </Link>
       </div>
@@ -275,36 +324,23 @@ export default function PlantDetailPage({
 
   return (
     <>
-      {/* Breadcrumb */}
-      <div
-        style={{ fontSize: "0.8rem", color: "var(--dash-muted)", marginBottom: "1.25rem" }}
-      >
-        <Link href="/dashboard/plants" style={{ color: "var(--dash-muted)", textDecoration: "none" }}>
-          Plants
-        </Link>
-        <span style={{ margin: "0 0.4rem" }}>›</span>
+      <div className="dash-breadcrumb">
+        <Link href="/dashboard/plants">Plants</Link>
+        <span style={{ margin: "0 0.4rem" }}>/</span>
         <span style={{ color: "var(--dash-text)" }}>{plant.name}</span>
       </div>
 
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div>
-          <h1 className="dash-section-title" style={{ marginBottom: "0.25rem" }}>
+      <div className="dash-page-header-row">
+        <div className="dash-page-header" style={{ marginBottom: 0 }}>
+          <p className="dash-eyebrow">Plant detail</p>
+          <h1 className="dash-section-title">
             <span
               className={`dash-status-dot ${plant.is_active ? "dash-status-active" : "dash-status-inactive"}`}
+              style={{ marginRight: "0.45rem", verticalAlign: "middle" }}
             />
             {plant.name}
           </h1>
-          <p style={{ color: "var(--dash-muted)", fontSize: "0.88rem" }}>
+          <p className="dash-page-sub">
             {plant.location ?? `${plant.latitude}, ${plant.longitude}`} · {plant.timezone}
           </p>
         </div>
@@ -314,50 +350,43 @@ export default function PlantDetailPage({
           onClick={handleGenerate}
           disabled={generating}
         >
-          {generating ? "Generating…" : "▶ Run Forecast"}
+          {generating ? "Generating…" : "Run forecast"}
         </button>
       </div>
 
-      {error && <div className="dash-error">⚠ {error}</div>}
+      {error && <div className="dash-error">{error}</div>}
 
-      {/* KPIs */}
       <div className="dash-kpi-grid" style={{ marginBottom: "1.5rem" }}>
         <div className="dash-kpi">
-          <div className="dash-kpi-label">DC Capacity</div>
+          <div className="dash-kpi-label">DC capacity</div>
           <div className="dash-kpi-value dash-kpi-sun">
             {plant.capacity_kw}
             <span className="dash-kpi-unit">kW</span>
           </div>
         </div>
         <div className="dash-kpi">
-          <div className="dash-kpi-label">Inverter Cap</div>
+          <div className="dash-kpi-label">Inverter cap</div>
           <div className="dash-kpi-value">
             {plant.inverter_capacity_kw}
             <span className="dash-kpi-unit">kW</span>
           </div>
         </div>
-        {summary && (
-          <>
-            <div className="dash-kpi">
-              <div className="dash-kpi-label">Predicted Yield</div>
-              <div className="dash-kpi-value dash-kpi-accent">
-                {summary.total_predicted_kwh.toFixed(1)}
-                <span className="dash-kpi-unit">kWh</span>
-              </div>
+        {summary ? (
+          <div className="dash-kpi">
+            <div className="dash-kpi-label">Predicted yield</div>
+            <div className="dash-kpi-value dash-kpi-accent">
+              {summary.total_predicted_kwh.toFixed(1)}
+              <span className="dash-kpi-unit">kWh</span>
             </div>
-            {summary.mean_absolute_error_kw != null && (
-              <div className="dash-kpi">
-                <div className="dash-kpi-label">MAE</div>
-                <div className="dash-kpi-value">
-                  {summary.mean_absolute_error_kw.toFixed(2)}
-                  <span className="dash-kpi-unit">kW</span>
-                </div>
-              </div>
-            )}
-          </>
+          </div>
+        ) : (
+          <div className="dash-kpi">
+            <div className="dash-kpi-label">Predicted yield</div>
+            <div className="dash-kpi-value">—</div>
+          </div>
         )}
         <div className="dash-kpi">
-          <div className="dash-kpi-label">Open Alerts</div>
+          <div className="dash-kpi-label">Open alerts</div>
           <div
             className={`dash-kpi-value ${openAlerts.length > 0 ? "dash-kpi-danger" : "dash-kpi-accent"}`}
           >
@@ -366,92 +395,88 @@ export default function PlantDetailPage({
         </div>
       </div>
 
-      {/* Forecast Chart */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: "1.25rem", marginBottom: "1.25rem" }}>
+      <div className="dash-split">
         <div className="dash-card">
-          <div className="dash-card-title">48-Hour Yield Forecast</div>
+          <div className="dash-card-title">48-hour yield forecast</div>
           <ForecastChart records={forecasts} />
         </div>
 
-        {/* Live weather sidebar */}
-        <div className="dash-card" style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-            <div className="dash-card-title" style={{ margin: 0 }}>🌤 Live Weather</div>
+        <div className="dash-card">
+          <div className="dash-card-title">
+            Live weather
             {weather?.source === "mock" && (
-              <span className="dash-badge dash-badge-muted" style={{ fontSize: "0.62rem" }}>mock</span>
+              <span className="dash-badge dash-badge-muted">mock</span>
             )}
           </div>
 
           {!weather ? (
-            <div className="dash-empty" style={{ padding: "1rem 0" }}>Fetching weather…</div>
-          ) : (() => {
-            const c = weather.current;
-            const row = (icon: string, label: string, val: string, color?: string) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.45rem", padding: "0.4rem 0", borderBottom: "1px solid var(--dash-border)" }}>
-                <span style={{ width: "1.3rem", textAlign: "center", flexShrink: 0 }}>{icon}</span>
-                <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)", flex: 1 }}>{label}</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: color ?? "var(--dash-text)" }}>{val}</span>
+            <div className="dash-empty" style={{ padding: "1rem 0" }}>
+              Fetching weather…
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <div className="dash-weather-temp">
+                  {weather.current.temperature_c.toFixed(1)}°C
+                </div>
+                <div className="dash-weather-meta">{weather.current.condition}</div>
               </div>
-            );
-            return (
-              <>
-                <div style={{ marginBottom: "0.6rem" }}>
-                  <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--dash-sun)", lineHeight: 1 }}>
-                    {c.temperature_c.toFixed(1)}°C
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--dash-muted)", marginTop: "0.15rem" }}>
-                    {c.condition}
-                  </div>
-                </div>
-                {row("☀️", "Irradiance", `${c.irradiance_w_m2.toFixed(0)} W/m²`, "var(--dash-sun)")}
-                {row("💧", "Humidity", `${c.humidity_pct.toFixed(0)}%`)}
-                {row("☁️", "Cloud", `${c.cloud_cover_pct.toFixed(0)}%`)}
-                {row("💨", "Wind", `${c.wind_speed_kph.toFixed(1)} km/h`)}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", padding: "0.4rem 0" }}>
-                  <span style={{ width: "1.3rem", textAlign: "center", flexShrink: 0 }}>🔆</span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)", flex: 1 }}>UV Index</span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: c.uv_index >= 6 ? "var(--dash-warning)" : "var(--dash-text)" }}>
-                    {c.uv_index.toFixed(1)}
-                  </span>
-                </div>
-              </>
-            );
-          })()}
+              <div className="dash-stat-row">
+                <span className="dash-stat-label">Irradiance</span>
+                <span className="dash-stat-value" style={{ color: "var(--sun)" }}>
+                  {weather.current.irradiance_w_m2.toFixed(0)} W/m²
+                </span>
+              </div>
+              <div className="dash-stat-row">
+                <span className="dash-stat-label">Humidity</span>
+                <span className="dash-stat-value">
+                  {weather.current.humidity_pct.toFixed(0)}%
+                </span>
+              </div>
+              <div className="dash-stat-row">
+                <span className="dash-stat-label">Cloud</span>
+                <span className="dash-stat-value">
+                  {weather.current.cloud_cover_pct.toFixed(0)}%
+                </span>
+              </div>
+              <div className="dash-stat-row">
+                <span className="dash-stat-label">Wind</span>
+                <span className="dash-stat-value">
+                  {weather.current.wind_speed_kph.toFixed(1)} km/h
+                </span>
+              </div>
+              <div className="dash-stat-row">
+                <span className="dash-stat-label">UV index</span>
+                <span
+                  className="dash-stat-value"
+                  style={{
+                    color:
+                      weather.current.uv_index >= 6 ? "var(--sun)" : undefined,
+                  }}
+                >
+                  {weather.current.uv_index.toFixed(1)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       <div className="dash-two-col">
-        {/* Config card */}
         {config && (
           <div className="dash-card">
-            <div className="dash-card-title">Plant Configuration</div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "0.75rem 1.5rem",
-              }}
-            >
+            <div className="dash-card-title">Configuration</div>
+            <div className="dash-config-grid">
               {[
                 { label: "Tilt", value: `${config.tilt}°` },
                 { label: "Azimuth", value: `${config.azimuth}°` },
                 { label: "Efficiency", value: `${(config.efficiency * 100).toFixed(1)}%` },
-                { label: "Soiling Threshold", value: `${config.soiling_threshold}%` },
-                { label: "Clipping Threshold", value: `${config.clipping_threshold}%` },
-                { label: "Forecast Horizon", value: `${config.forecast_horizon_minutes} min` },
+                { label: "Soiling threshold", value: `${config.soiling_threshold}%` },
+                { label: "Clipping threshold", value: `${config.clipping_threshold}%` },
+                { label: "Forecast horizon", value: `${config.forecast_horizon_minutes} min` },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <div
-                    style={{
-                      fontSize: "0.7rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.07em",
-                      color: "var(--dash-muted)",
-                      marginBottom: "0.2rem",
-                    }}
-                  >
-                    {label}
-                  </div>
+                  <div className="dash-config-label">{label}</div>
                   <div style={{ fontWeight: 600 }}>{value}</div>
                 </div>
               ))}
@@ -459,19 +484,14 @@ export default function PlantDetailPage({
           </div>
         )}
 
-        {/* Alerts */}
         <div className="dash-card">
-          <div
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}
-          >
-            <div className="dash-card-title" style={{ marginBottom: 0 }}>
-              Alerts
-            </div>
+          <div className="dash-card-title">
+            Alerts
             <span className="dash-badge dash-badge-red">{openAlerts.length} open</span>
           </div>
           {alerts.length === 0 ? (
             <div className="dash-empty" style={{ padding: "1.5rem 0" }}>
-              No alerts for this plant 🎉
+              No alerts for this plant.
             </div>
           ) : (
             <div className="dash-alert-list">
@@ -482,24 +502,26 @@ export default function PlantDetailPage({
                   <span className="dash-alert-time">
                     {new Date(a.timestamp).toLocaleDateString()}
                   </span>
-                  {!a.is_resolved ? (
-                    <button
-                      className="dash-alert-resolve-btn"
-                      onClick={() => handleResolve(a.id)}
-                    >
-                      Resolve
-                    </button>
-                  ) : (
-                    <span
-                      style={{
-                        fontSize: "0.7rem",
-                        color: "var(--dash-accent)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      ✓ Resolved
-                    </span>
-                  )}
+                  <div className="dash-alert-actions">
+                    {!a.is_resolved ? (
+                      <button
+                        className="dash-alert-resolve-btn"
+                        onClick={() => handleResolve(a.id)}
+                      >
+                        Resolve
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--field)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Resolved
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

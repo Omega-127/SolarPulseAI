@@ -13,12 +13,11 @@ import {
   type WeatherData,
 } from "@/lib/api";
 
-// ── Tiny SVG line chart ────────────────────────────────────────────────────────
 function ForecastChart({ records }: { records: ForecastRecord[] }) {
   if (records.length < 2) {
     return (
       <div className="dash-empty" style={{ padding: "2rem 0" }}>
-        No forecast data yet — trigger a forecast on a plant to see the chart.
+        No forecast data yet — run a forecast on a plant to populate this chart.
       </div>
     );
   }
@@ -55,13 +54,11 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
     }, [] as string[])
     .join(" ");
 
-  // Filled area under predicted
   const firstX = xScale(0);
   const lastX = xScale(sorted.length - 1);
   const baseY = yScale(minV);
   const areaPath = `${predictedPath} L${lastX},${baseY} L${firstX},${baseY} Z`;
 
-  // X-axis labels (up to 6)
   const step = Math.max(1, Math.floor(sorted.length / 6));
   const xLabels = sorted
     .filter((_, i) => i % step === 0 || i === sorted.length - 1)
@@ -72,7 +69,6 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
       return { x: xScale(idx), label };
     });
 
-  // Y-axis labels
   const yTicks = 4;
   const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => {
     const v = minV + ((maxV - minV) * i) / yTicks;
@@ -88,12 +84,11 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
       >
         <defs>
           <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--dash-accent)" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="var(--dash-accent)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--field)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--field)" stopOpacity="0.01" />
           </linearGradient>
         </defs>
 
-        {/* Grid lines */}
         {yLabels.map(({ y, label }) => (
           <g key={label}>
             <line
@@ -101,7 +96,7 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
               y1={y}
               x2={W - PAD.right}
               y2={y}
-              stroke="rgba(255,255,255,0.06)"
+              stroke="var(--line)"
               strokeWidth="1"
             />
             <text
@@ -109,14 +104,13 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
               y={y + 4}
               textAnchor="end"
               fontSize="10"
-              fill="rgba(122,158,133,0.8)"
+              fill="var(--muted)"
             >
               {label}
             </text>
           </g>
         ))}
 
-        {/* X labels */}
         {xLabels.map(({ x, label }) => (
           <text
             key={label + x}
@@ -124,41 +118,35 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
             y={H - 6}
             textAnchor="middle"
             fontSize="10"
-            fill="rgba(122,158,133,0.8)"
+            fill="var(--muted)"
           >
             {label}
           </text>
         ))}
 
-        {/* Axes */}
         <line
           x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={H - PAD.bottom}
-          stroke="rgba(255,255,255,0.1)" strokeWidth="1"
+          stroke="var(--line)" strokeWidth="1"
         />
         <line
           x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom}
-          stroke="rgba(255,255,255,0.1)" strokeWidth="1"
+          stroke="var(--line)" strokeWidth="1"
         />
 
-        {/* Area fill */}
         <path d={areaPath} fill="url(#areaGrad)" />
-
-        {/* Predicted line */}
         <path
           d={predictedPath}
           fill="none"
-          stroke="var(--dash-accent)"
+          stroke="var(--field)"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-
-        {/* Actual line */}
         {actualPath && (
           <path
             d={actualPath}
             fill="none"
-            stroke="var(--dash-sun)"
+            stroke="var(--sun)"
             strokeWidth="1.5"
             strokeDasharray="4 3"
             strokeLinecap="round"
@@ -167,9 +155,9 @@ function ForecastChart({ records }: { records: ForecastRecord[] }) {
         )}
       </svg>
 
-      <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.5rem" }}>
-        <LegendDot color="var(--dash-accent)" label="Predicted (kW)" />
-        <LegendDot color="var(--dash-sun)" label="Actual (kW)" dashed />
+      <div className="dash-legend">
+        <LegendDot color="var(--field)" label="Predicted (kW)" />
+        <LegendDot color="var(--sun)" label="Actual (kW)" dashed />
       </div>
     </div>
   );
@@ -185,7 +173,7 @@ function LegendDot({
   dashed?: boolean;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+    <div className="dash-legend-item">
       <svg width="20" height="10">
         <line
           x1="0"
@@ -197,18 +185,19 @@ function LegendDot({
           strokeDasharray={dashed ? "4 3" : "none"}
         />
       </svg>
-      <span style={{ fontSize: "0.75rem", color: "var(--dash-muted)" }}>{label}</span>
+      <span>{label}</span>
     </div>
   );
 }
 
-// ── Weather widget ─────────────────────────────────────────────────────────────────────
 function WeatherWidget({ weather }: { weather: WeatherData | null }) {
   if (!weather) {
     return (
-      <div className="dash-card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <div className="dash-card-title">🌤 Current Weather</div>
-        <div className="dash-empty" style={{ padding: "1.5rem 0" }}>Loading weather…</div>
+      <div className="dash-card">
+        <div className="dash-card-title">Current weather</div>
+        <div className="dash-empty" style={{ padding: "1.5rem 0" }}>
+          Loading weather…
+        </div>
       </div>
     );
   }
@@ -216,40 +205,44 @@ function WeatherWidget({ weather }: { weather: WeatherData | null }) {
   const c = weather.current;
   const isMock = weather.source === "mock";
 
-  const statRow = (icon: string, label: string, value: string, color?: string) => (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0", borderBottom: "1px solid var(--dash-border)" }}>
-      <span style={{ fontSize: "1rem", width: "1.4rem", textAlign: "center", flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: "0.78rem", color: "var(--dash-muted)", flex: 1 }}>{label}</span>
-      <span style={{ fontSize: "0.88rem", fontWeight: 600, color: color ?? "var(--dash-text)" }}>{value}</span>
-    </div>
-  );
-
   return (
-    <div className="dash-card" style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-        <div className="dash-card-title" style={{ margin: 0 }}>🌤 Current Weather</div>
-        {isMock && (
-          <span className="dash-badge dash-badge-muted" style={{ fontSize: "0.65rem" }}>mock</span>
-        )}
+    <div className="dash-card">
+      <div className="dash-card-title">
+        Current weather
+        {isMock && <span className="dash-badge dash-badge-muted">mock</span>}
       </div>
 
-      <div style={{ marginBottom: "0.75rem" }}>
-        <div style={{ fontSize: "1.65rem", fontWeight: 700, color: "var(--dash-sun)", lineHeight: 1 }}>
-          {c.temperature_c.toFixed(1)}°C
-        </div>
-        <div style={{ fontSize: "0.8rem", color: "var(--dash-muted)", marginTop: "0.2rem" }}>
-          {c.condition} • {weather.location_name}
+      <div style={{ marginBottom: "0.85rem" }}>
+        <div className="dash-weather-temp">{c.temperature_c.toFixed(1)}°C</div>
+        <div className="dash-weather-meta">
+          {c.condition} · {weather.location_name}
         </div>
       </div>
 
-      {statRow("☀️", "Irradiance", `${c.irradiance_w_m2.toFixed(0)} W/m²`, "var(--dash-sun)")}
-      {statRow("💧", "Humidity", `${c.humidity_pct.toFixed(0)}%`)}
-      {statRow("☁️", "Cloud Cover", `${c.cloud_cover_pct.toFixed(0)}%`)}
-      {statRow("💨", "Wind", `${c.wind_speed_kph.toFixed(1)} km/h`)}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0" }}>
-        <span style={{ fontSize: "1rem", width: "1.4rem", textAlign: "center", flexShrink: 0 }}>🔆</span>
-        <span style={{ fontSize: "0.78rem", color: "var(--dash-muted)", flex: 1 }}>UV Index</span>
-        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: c.uv_index >= 6 ? "var(--dash-warning)" : "var(--dash-text)" }}>
+      <div className="dash-stat-row">
+        <span className="dash-stat-label">Irradiance</span>
+        <span className="dash-stat-value" style={{ color: "var(--sun)" }}>
+          {c.irradiance_w_m2.toFixed(0)} W/m²
+        </span>
+      </div>
+      <div className="dash-stat-row">
+        <span className="dash-stat-label">Humidity</span>
+        <span className="dash-stat-value">{c.humidity_pct.toFixed(0)}%</span>
+      </div>
+      <div className="dash-stat-row">
+        <span className="dash-stat-label">Cloud cover</span>
+        <span className="dash-stat-value">{c.cloud_cover_pct.toFixed(0)}%</span>
+      </div>
+      <div className="dash-stat-row">
+        <span className="dash-stat-label">Wind</span>
+        <span className="dash-stat-value">{c.wind_speed_kph.toFixed(1)} km/h</span>
+      </div>
+      <div className="dash-stat-row">
+        <span className="dash-stat-label">UV index</span>
+        <span
+          className="dash-stat-value"
+          style={{ color: c.uv_index >= 6 ? "var(--sun)" : undefined }}
+        >
           {c.uv_index.toFixed(1)}
         </span>
       </div>
@@ -257,7 +250,6 @@ function WeatherWidget({ weather }: { weather: WeatherData | null }) {
   );
 }
 
-// ── Alert row ─────────────────────────────────────────────────────────────────
 function AlertRow({
   alert,
   onResolve,
@@ -274,18 +266,19 @@ function AlertRow({
       <span className="dash-alert-msg">{alert.message}</span>
       <span className="dash-alert-time">{time}</span>
       {!alert.is_resolved && (
-        <button
-          className="dash-alert-resolve-btn"
-          onClick={() => onResolve(alert.id)}
-        >
-          Resolve
-        </button>
+        <div className="dash-alert-actions">
+          <button
+            className="dash-alert-resolve-btn"
+            onClick={() => onResolve(alert.id)}
+          >
+            Resolve
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
@@ -302,7 +295,6 @@ export default function DashboardPage() {
       setPlants(p);
       setAlerts(a);
 
-      // Load forecasts and weather for the first plant if available
       if (p.length > 0) {
         const [fc, wx] = await Promise.all([
           forecastApi.list(p[0].id, 48),
@@ -344,16 +336,15 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div style={{ marginBottom: "1.75rem" }}>
-        <h1 className="dash-section-title" style={{ marginBottom: "0.25rem" }}>
-          Overview
-        </h1>
-        <p style={{ color: "var(--dash-muted)", fontSize: "0.88rem" }}>
-          Live status across all registered solar plants.
+      <div className="dash-page-header">
+        <p className="dash-eyebrow">Fleet status</p>
+        <h1 className="dash-section-title">Overview</h1>
+        <p className="dash-page-sub">
+          Live status across registered solar plants.
         </p>
       </div>
 
-      {error && <div className="dash-error">⚠ {error}</div>}
+      {error && <div className="dash-error">{error}</div>}
 
       {loading ? (
         <div className="dash-loading">
@@ -362,10 +353,9 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* ── KPIs ── */}
           <div className="dash-kpi-grid">
             <div className="dash-kpi">
-              <div className="dash-kpi-label">Active Plants</div>
+              <div className="dash-kpi-label">Active plants</div>
               <div className="dash-kpi-value dash-kpi-accent">
                 {activePlants}
                 <span className="dash-kpi-unit">/ {plants.length}</span>
@@ -374,7 +364,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-kpi">
-              <div className="dash-kpi-label">Total Capacity</div>
+              <div className="dash-kpi-label">Total capacity</div>
               <div className="dash-kpi-value dash-kpi-sun">
                 {totalCapacity.toFixed(1)}
                 <span className="dash-kpi-unit">kW</span>
@@ -383,68 +373,48 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-kpi">
-              <div className="dash-kpi-label">Open Alerts</div>
+              <div className="dash-kpi-label">Open alerts</div>
               <div className={`dash-kpi-value ${criticalAlerts > 0 ? "dash-kpi-danger" : "dash-kpi-warning"}`}>
                 {openAlerts.length}
               </div>
-              <div className="dash-kpi-sub">
-                {criticalAlerts} critical
-              </div>
+              <div className="dash-kpi-sub">{criticalAlerts} critical</div>
             </div>
 
             <div className="dash-kpi">
-              <div className="dash-kpi-label">Forecast Records</div>
-              <div className="dash-kpi-value">
-                {forecasts.length}
-              </div>
+              <div className="dash-kpi-label">Forecast records</div>
+              <div className="dash-kpi-value">{forecasts.length}</div>
               <div className="dash-kpi-sub">
                 {plants.length > 0 ? `for ${plants[0].name}` : "—"}
               </div>
             </div>
           </div>
 
-          {/* ── Forecast chart + weather + alert sidebar ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: "1.25rem", marginBottom: "1.5rem" }}>
-            {/* Left: chart */}
+          <div className="dash-split">
             <div className="dash-card">
-              <div
-                className="dash-card-title"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              >
-                <div>
-                  Yield Forecast
+              <div className="dash-card-title">
+                <span>
+                  Yield forecast
                   {plants.length > 0 && (
-                    <span style={{ marginLeft: "0.5rem", color: "var(--dash-accent)", textTransform: "none", letterSpacing: 0 }}>
-                      — {plants[0].name}
+                    <span className="dash-card-title-meta" style={{ marginLeft: "0.5rem" }}>
+                      {plants[0].name}
                     </span>
                   )}
-                </div>
-                <Link
-                  href="/dashboard/forecasts"
-                  className="dash-btn dash-btn-ghost"
-                  style={{
-                    fontSize: "0.78rem",
-                    padding: "0.2rem 0.55rem",
-                    color: "var(--dash-sun)",
-                    border: "1px solid rgba(240, 168, 50, 0.3)",
-                  }}
-                >
-                  ⚡ P10/P50/P90 & Ramp Risk →
+                </span>
+                <Link href="/dashboard/forecasts" className="dash-btn dash-btn-ghost dash-btn-sm">
+                  Probabilistic view
                 </Link>
               </div>
               <ForecastChart records={forecasts} />
             </div>
 
-            {/* Right: weather widget */}
             <WeatherWidget weather={weather} />
           </div>
 
-          {/* ── Alert panel ── */}
           <div className="dash-card" style={{ marginBottom: "1.5rem" }}>
-            <div className="dash-card-title">Recent Alerts</div>
+            <div className="dash-card-title">Recent alerts</div>
             {openAlerts.length === 0 ? (
               <div className="dash-empty" style={{ padding: "1.5rem 0" }}>
-                No open alerts 🎉
+                No open alerts.
               </div>
             ) : (
               <div className="dash-alert-list">
@@ -454,29 +424,32 @@ export default function DashboardPage() {
               </div>
             )}
             {openAlerts.length > 6 && (
-              <div style={{ marginTop: "0.75rem" }}>
-                <Link href="/dashboard/alerts" className="dash-btn dash-btn-ghost" style={{ fontSize: "0.8rem" }}>
-                  View all {openAlerts.length} alerts →
+              <div style={{ marginTop: "0.85rem" }}>
+                <Link href="/dashboard/alerts" className="dash-btn dash-btn-ghost dash-btn-sm">
+                  View all {openAlerts.length} alerts
                 </Link>
               </div>
             )}
           </div>
 
-          {/* ── Plants ── */}
-          <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h2 className="dash-section-title" style={{ margin: 0 }}>
-              Your Plants
+          <div className="dash-page-header-row" style={{ marginBottom: "1rem" }}>
+            <h2 className="dash-section-title" style={{ margin: 0, fontSize: "1.25rem" }}>
+              Your plants
             </h2>
             <Link href="/dashboard/plants/new" className="dash-btn dash-btn-primary">
-              + Add Plant
+              Add plant
             </Link>
           </div>
 
           {plants.length === 0 ? (
             <div className="dash-card dash-empty">
               <p>No plants registered yet.</p>
-              <Link href="/dashboard/plants/new" className="dash-btn dash-btn-primary" style={{ marginTop: "1rem" }}>
-                Register your first plant →
+              <Link
+                href="/dashboard/plants/new"
+                className="dash-btn dash-btn-primary"
+                style={{ marginTop: "1rem" }}
+              >
+                Register your first plant
               </Link>
             </div>
           ) : (
@@ -488,11 +461,14 @@ export default function DashboardPage() {
                   className="dash-plant-card"
                 >
                   <div className="dash-plant-name">
-                    <span className={`dash-status-dot ${plant.is_active ? "dash-status-active" : "dash-status-inactive"}`} />
+                    <span
+                      className={`dash-status-dot ${plant.is_active ? "dash-status-active" : "dash-status-inactive"}`}
+                    />
                     {plant.name}
                   </div>
                   <div className="dash-plant-loc">
-                    {plant.location ?? `${plant.latitude.toFixed(3)}, ${plant.longitude.toFixed(3)}`}
+                    {plant.location ??
+                      `${plant.latitude.toFixed(3)}, ${plant.longitude.toFixed(3)}`}
                   </div>
                   <div className="dash-plant-stats">
                     <div>
@@ -501,7 +477,9 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <div className="dash-plant-stat-label">Inverter</div>
-                      <div className="dash-plant-stat-value">{plant.inverter_capacity_kw} kW</div>
+                      <div className="dash-plant-stat-value">
+                        {plant.inverter_capacity_kw} kW
+                      </div>
                     </div>
                     {plant.module_count && (
                       <div>

@@ -21,11 +21,9 @@ export default function AlertsPage() {
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
   const [viewTab, setViewTab] = useState<"alerts" | "sandbox">("alerts");
 
-  // Diagnosis Modal state
   const [activeDiagnosis, setActiveDiagnosis] = useState<DiagnosisResponse | null>(null);
   const [diagnosingId, setDiagnosingId] = useState<number | null>(null);
 
-  // Diagnostic Sandbox state
   const [customPlantId, setCustomPlantId] = useState<number | null>(null);
   const [selectedErrorCode, setSelectedErrorCode] = useState<string>("F056");
   const [customExpectedKw, setCustomExpectedKw] = useState<string>("42000");
@@ -76,7 +74,7 @@ export default function AlertsPage() {
       const diag = await diagnosisApi.diagnoseAlert(alertId);
       setActiveDiagnosis(diag);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Diagnosis calculation failed.");
+      setError(err instanceof Error ? err.message : "Diagnosis failed.");
     } finally {
       setDiagnosingId(null);
     }
@@ -97,7 +95,7 @@ export default function AlertsPage() {
       });
       setActiveDiagnosis(diag);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Diagnostic execution failed.");
+      setError(err instanceof Error ? err.message : "Diagnostic run failed.");
     } finally {
       setRunningSandbox(false);
     }
@@ -117,71 +115,35 @@ export default function AlertsPage() {
 
   return (
     <>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1 className="dash-section-title" style={{ marginBottom: "0.25rem" }}>
-          Alerts & AI Root-Cause Diagnostics
-        </h1>
-        <p style={{ color: "var(--dash-muted)", fontSize: "0.88rem" }}>
-          Automated fault classification, multi-vendor inverter error code diagnosis, and field technician dispatch work orders.
+      <div className="dash-page-header">
+        <p className="dash-eyebrow">Operations</p>
+        <h1 className="dash-section-title">Alerts</h1>
+        <p className="dash-page-sub">
+          Anomaly log and inverter fault diagnosis for field dispatch.
         </p>
       </div>
 
-      {error && <div className="dash-error" style={{ marginBottom: "1.25rem" }}>⚠ {error}</div>}
+      {error && <div className="dash-error">{error}</div>}
 
-      {/* Main Mode Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          borderBottom: "1px solid var(--dash-border)",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="dash-tabs">
         <button
           type="button"
+          className={`dash-tab${viewTab === "alerts" ? " active" : ""}`}
           onClick={() => setViewTab("alerts")}
-          style={{
-            background: "none",
-            border: "none",
-            padding: "0.6rem 1.25rem",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            color: viewTab === "alerts" ? "var(--dash-accent)" : "var(--dash-muted)",
-            borderBottom: viewTab === "alerts" ? "2px solid var(--dash-accent)" : "2px solid transparent",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
         >
-          <span>🔔</span> Anomaly Alerts Log ({counts.open} Open)
+          Alert log ({counts.open} open)
         </button>
-
         <button
           type="button"
+          className={`dash-tab${viewTab === "sandbox" ? " active" : ""}`}
           onClick={() => setViewTab("sandbox")}
-          style={{
-            background: "none",
-            border: "none",
-            padding: "0.6rem 1.25rem",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            color: viewTab === "sandbox" ? "var(--dash-accent)" : "var(--dash-muted)",
-            borderBottom: viewTab === "sandbox" ? "2px solid var(--dash-accent)" : "2px solid transparent",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
         >
-          <span>⚡</span> Inverter Error Code Diagnostic Sandbox
+          Fault sandbox
         </button>
       </div>
 
-      {/* ── TAB 1: Alerts Log ──────────────────────────────────────────────────────── */}
       {viewTab === "alerts" && (
         <>
-          {/* Filter pills */}
           <div
             style={{
               display: "flex",
@@ -192,32 +154,21 @@ export default function AlertsPage() {
               gap: "0.75rem",
             }}
           >
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div className="dash-filters">
               {(["open", "all", "resolved"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`dash-btn ${filter === f ? "dash-btn-primary" : "dash-btn-ghost"}`}
-                  style={{ fontSize: "0.82rem" }}
+                  className={`dash-btn dash-btn-sm ${filter === f ? "dash-btn-primary" : "dash-btn-ghost"}`}
                 >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}{" "}
-                  <span
-                    style={{
-                      background: "rgba(255,255,255,0.12)",
-                      borderRadius: 3,
-                      padding: "0 0.35rem",
-                      fontSize: "0.72rem",
-                    }}
-                  >
-                    {counts[f]}
-                  </span>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  <span style={{ opacity: 0.75 }}>{counts[f]}</span>
                 </button>
               ))}
             </div>
-
-            <div style={{ fontSize: "0.8rem", color: "var(--dash-muted)" }}>
-              Tip: Click <strong>⚡ AI Diagnose</strong> to analyze inverter error codes and generate technician work orders.
-            </div>
+            <p className="dash-page-sub" style={{ margin: 0, fontSize: "0.82rem" }}>
+              Use Diagnose to inspect root cause and technician steps.
+            </p>
           </div>
 
           {loading ? (
@@ -227,7 +178,7 @@ export default function AlertsPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="dash-card dash-empty">
-              {filter === "open" ? "No open alerts — all clear 🎉" : "No alerts in this category."}
+              {filter === "open" ? "No open alerts." : "No alerts in this category."}
             </div>
           ) : (
             <div className="dash-card">
@@ -239,7 +190,7 @@ export default function AlertsPage() {
                   return (
                     <div key={a.id} className={`dash-alert-row ${severity}`}>
                       <span className={`dash-alert-badge ${severity}`}>{severity}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ minWidth: 0 }}>
                         <div className="dash-alert-msg" style={{ fontWeight: 600 }}>
                           {a.message}
                         </div>
@@ -247,42 +198,32 @@ export default function AlertsPage() {
                           style={{
                             fontSize: "0.74rem",
                             color: "var(--dash-muted)",
-                            marginTop: "0.25rem",
-                            display: "flex",
-                            gap: "0.6rem",
-                            flexWrap: "wrap",
+                            marginTop: "0.3rem",
+                            lineHeight: 1.4,
+                            overflowWrap: "anywhere",
                           }}
                         >
-                          <span>Plant #{a.plant_id}</span>
-                          <span>· Type: {a.alert_type}</span>
-                          {a.deviation_percent != null && (
-                            <span>· {a.deviation_percent.toFixed(1)}% power shortfall</span>
-                          )}
-                          {a.expected_power_kw != null && a.actual_power_kw != null && (
-                            <span>· {a.actual_power_kw.toFixed(0)} kW / {a.expected_power_kw.toFixed(0)} kW</span>
-                          )}
+                          Plant #{a.plant_id}
+                          {" · "}
+                          {a.alert_type}
+                          {a.deviation_percent != null &&
+                            ` · ${a.deviation_percent.toFixed(1)}% shortfall`}
+                          {a.expected_power_kw != null &&
+                            a.actual_power_kw != null &&
+                            ` · ${a.actual_power_kw.toFixed(0)} / ${a.expected_power_kw.toFixed(0)} kW`}
                         </div>
                       </div>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
-                        <span className="dash-alert-time" style={{ marginRight: "0.5rem" }}>
-                          {new Date(a.timestamp).toLocaleString()}
-                        </span>
-
+                      <span className="dash-alert-time">
+                        {new Date(a.timestamp).toLocaleString()}
+                      </span>
+                      <div className="dash-alert-actions">
                         <button
-                          className="dash-btn dash-btn-ghost"
-                          style={{
-                            fontSize: "0.76rem",
-                            padding: "0.3rem 0.65rem",
-                            border: "1px solid rgba(61, 189, 110, 0.4)",
-                            color: "var(--dash-accent)",
-                          }}
+                          className="dash-btn dash-btn-ghost dash-btn-sm"
                           onClick={() => handleDiagnoseAlert(a.id)}
                           disabled={isDiagnosing}
                         >
-                          {isDiagnosing ? "Diagnosing…" : "⚡ AI Diagnose"}
+                          {isDiagnosing ? "Diagnosing…" : "Diagnose"}
                         </button>
-
                         {!a.is_resolved ? (
                           <button
                             className="dash-alert-resolve-btn"
@@ -294,11 +235,11 @@ export default function AlertsPage() {
                           <span
                             style={{
                               fontSize: "0.72rem",
-                              color: "var(--dash-accent)",
+                              color: "var(--field)",
                               fontWeight: 600,
                             }}
                           >
-                            ✓ Resolved
+                            Resolved
                           </span>
                         )}
                       </div>
@@ -311,33 +252,38 @@ export default function AlertsPage() {
         </>
       )}
 
-      {/* ── TAB 2: Diagnostic Sandbox ────────────────────────────────────────────── */}
       {viewTab === "sandbox" && (
         <div className="dash-card">
-          <div style={{ marginBottom: "1.25rem" }}>
-            <h2 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>
-              On-Demand Inverter Fault & Telemetry Diagnostic Tool
+          <div style={{ marginBottom: "1.25rem", maxWidth: "36rem" }}>
+            <h2
+              style={{
+                fontFamily: "var(--font-display), sans-serif",
+                fontSize: "1.1rem",
+                fontWeight: 700,
+                margin: 0,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Inverter fault sandbox
             </h2>
-            <p style={{ fontSize: "0.82rem", color: "var(--dash-muted)", margin: "0.25rem 0 0" }}>
-              Input any standard inverter fault code or observed telemetry shortfall to compute AI root-cause analysis and generate actionable field technician procedures.
+            <p className="dash-page-sub" style={{ marginTop: "0.35rem" }}>
+              Enter a fault code and telemetry shortfall to run root-cause analysis.
             </p>
           </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
               gap: "1rem",
               marginBottom: "1.25rem",
             }}
           >
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Target Solar Plant:
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-plant">Plant</label>
               <select
+                id="sandbox-plant"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={customPlantId ?? ""}
                 onChange={(e) => setCustomPlantId(parseInt(e.target.value, 10))}
               >
@@ -349,102 +295,83 @@ export default function AlertsPage() {
               </select>
             </div>
 
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Inverter Error Code:
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-code">Error code</label>
               <input
+                id="sandbox-code"
                 type="text"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={selectedErrorCode}
                 onChange={(e) => setSelectedErrorCode(e.target.value)}
-                placeholder="e.g. F056, F034, AFCI, F012"
+                placeholder="e.g. F056"
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Expected Power (kW):
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-expected">Expected power (kW)</label>
               <input
+                id="sandbox-expected"
                 type="number"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={customExpectedKw}
                 onChange={(e) => setCustomExpectedKw(e.target.value)}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Actual Power (kW):
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-actual">Actual power (kW)</label>
               <input
+                id="sandbox-actual"
                 type="number"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={customActualKw}
                 onChange={(e) => setCustomActualKw(e.target.value)}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Irradiance (W/m²):
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-irr">Irradiance (W/m²)</label>
               <input
+                id="sandbox-irr"
                 type="number"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={customIrradiance}
                 onChange={(e) => setCustomIrradiance(e.target.value)}
               />
             </div>
 
-            <div>
-              <label style={{ fontSize: "0.78rem", color: "var(--dash-muted)", display: "block", marginBottom: "0.3rem" }}>
-                Ambient Temperature (°C):
-              </label>
+            <div className="dash-field">
+              <label htmlFor="sandbox-temp">Temperature (°C)</label>
               <input
+                id="sandbox-temp"
                 type="number"
                 className="dash-input"
-                style={{ width: "100%", padding: "0.5rem" }}
                 value={customTemp}
                 onChange={(e) => setCustomTemp(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Quick preset chips */}
           <div style={{ marginBottom: "1.5rem" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--dash-muted)", marginBottom: "0.4rem" }}>
-              Quick Error Code Presets (Click to load):
+            <div className="dash-config-label" style={{ marginBottom: "0.45rem" }}>
+              Presets
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            <div className="dash-chip-row">
               {[
-                { code: "F056", label: "F056: Inverter Overtemp / Fan Trip" },
-                { code: "F034", label: "F034: DC Ground Fault (Low Riso)" },
-                { code: "F012", label: "F012: DC String Open-Circuit" },
-                { code: "F063", label: "F063: DC Arc Fault (AFCI)" },
-                { code: "F021", label: "F021: Grid Overvoltage Curtailment" },
-                { code: "F077", label: "F077: MPPT Tracker Stalled" },
-                { code: "SOILING", label: "SOILING: Particulate Dust Deficit" },
-                { code: "CLIPPING", label: "CLIPPING: Inverter AC Power Saturation" },
+                { code: "F056", label: "F056 Overtemp" },
+                { code: "F034", label: "F034 Ground fault" },
+                { code: "F012", label: "F012 Open circuit" },
+                { code: "F063", label: "F063 Arc fault" },
+                { code: "F021", label: "F021 Grid OV" },
+                { code: "F077", label: "F077 MPPT stall" },
+                { code: "SOILING", label: "Soiling" },
+                { code: "CLIPPING", label: "Clipping" },
               ].map((preset) => (
                 <button
                   key={preset.code}
                   type="button"
+                  className={`dash-chip${selectedErrorCode === preset.code ? " active" : ""}`}
                   onClick={() => setSelectedErrorCode(preset.code)}
-                  style={{
-                    background: selectedErrorCode === preset.code ? "rgba(61, 189, 110, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                    border: `1px solid ${selectedErrorCode === preset.code ? "var(--dash-accent)" : "var(--dash-border)"}`,
-                    color: selectedErrorCode === preset.code ? "var(--dash-accent)" : "var(--dash-text)",
-                    padding: "0.25rem 0.6rem",
-                    borderRadius: 4,
-                    fontSize: "0.74rem",
-                    cursor: "pointer",
-                  }}
                 >
                   {preset.label}
                 </button>
@@ -456,50 +383,53 @@ export default function AlertsPage() {
             className="dash-btn dash-btn-primary"
             onClick={handleRunSandbox}
             disabled={runningSandbox || !customPlantId}
-            style={{ padding: "0.6rem 1.5rem", fontSize: "0.9rem" }}
           >
-            {runningSandbox ? "Executing Diagnostic Inference…" : "🔍 Run AI Root-Cause Diagnosis"}
+            {runningSandbox ? "Running…" : "Run diagnosis"}
           </button>
 
           {taxonomy.length > 0 && (
-            <div style={{ marginTop: "2rem", borderTop: "1px solid var(--dash-border)", paddingTop: "1.25rem" }}>
-              <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.75rem", color: "var(--dash-text)" }}>
-                Diagnostic Fault Taxonomy & Supported Code Signatures ({taxonomy.length} Categories)
+            <div
+              style={{
+                marginTop: "2rem",
+                borderTop: "1px solid var(--dash-border)",
+                paddingTop: "1.25rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontFamily: "var(--font-display), sans-serif",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  marginBottom: "0.85rem",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Fault taxonomy ({taxonomy.length})
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "0.75rem" }}>
+              <div className="dash-preset-grid">
                 {taxonomy.map((t) => (
-                  <div
-                    key={t.category}
-                    style={{
-                      background: "rgba(255,255,255,0.02)",
-                      border: "1px solid var(--dash-border)",
-                      borderRadius: 8,
-                      padding: "0.75rem 1rem",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
-                      <strong style={{ fontSize: "0.85rem", color: "var(--dash-text)" }}>{t.title}</strong>
-                      <span className="dash-badge dash-badge-muted" style={{ fontSize: "0.68rem" }}>{t.typical_urgency}</span>
+                  <div key={t.category} className="dash-preset-card">
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <strong style={{ fontSize: "0.88rem", overflowWrap: "anywhere" }}>
+                        {t.title}
+                      </strong>
+                      <span className="dash-badge dash-badge-muted">{t.typical_urgency}</span>
                     </div>
-                    <p style={{ fontSize: "0.78rem", color: "var(--dash-muted)", margin: "0 0 0.4rem", lineHeight: 1.4 }}>
-                      {t.description}
-                    </p>
-                    <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", alignItems: "center" }}>
-                      <span style={{ fontSize: "0.7rem", color: "var(--dash-muted)" }}>Codes:</span>
+                    <p>{t.description}</p>
+                    <div className="dash-chip-row">
                       {t.common_error_codes.map((c) => (
                         <button
                           key={c}
                           type="button"
+                          className="dash-chip"
                           onClick={() => setSelectedErrorCode(c)}
-                          style={{
-                            background: "rgba(61, 189, 110, 0.1)",
-                            color: "var(--dash-accent)",
-                            border: "1px solid rgba(61, 189, 110, 0.2)",
-                            borderRadius: 4,
-                            padding: "0.1rem 0.35rem",
-                            fontSize: "0.68rem",
-                            cursor: "pointer",
-                          }}
                         >
                           {c}
                         </button>
@@ -513,7 +443,6 @@ export default function AlertsPage() {
         </div>
       )}
 
-      {/* Diagnosis Inspection Modal */}
       {activeDiagnosis && (
         <DiagnosisModal
           diagnosis={activeDiagnosis}

@@ -1,4 +1,4 @@
-"useclient";
+"use client";
 
 import React, { useState, useRef } from "react";
 import type { ProbabilisticForecastPoint } from "@/lib/api";
@@ -7,6 +7,16 @@ interface ProbabilisticBandChartProps {
   points: ProbabilisticForecastPoint[];
   capacityKw: number;
 }
+
+const COLORS = {
+  p90: "#c9852a",
+  p50: "#1a3a2a",
+  p10: "#4a6fa5",
+  critical: "#9b2c2c",
+  high: "#c9852a",
+  muted: "#5c665c",
+  line: "#c5cdc5",
+};
 
 export default function ProbabilisticBandChart({
   points,
@@ -21,8 +31,8 @@ export default function ProbabilisticBandChart({
 
   if (!points || points.length === 0) {
     return (
-      <div className="dash-empty" style={{ padding: "3rem 1rem", textAlign: "center" }}>
-        No probabilistic forecast data available for this selection.
+      <div className="dash-empty" style={{ padding: "3rem 1rem" }}>
+        No probabilistic forecast data for this selection.
       </div>
     );
   }
@@ -42,28 +52,29 @@ export default function ProbabilisticBandChart({
   const xScale = (i: number) =>
     PAD.left + (i / Math.max(points.length - 1, 1)) * innerW;
   const yScale = (v: number) =>
-    PAD.top + innerH - ((Math.max(0, v) - minVal) / Math.max(maxVal - minVal, 1)) * innerH;
+    PAD.top +
+    innerH -
+    ((Math.max(0, v) - minVal) / Math.max(maxVal - minVal, 1)) * innerH;
 
-  // Build SVG Paths
   const p90Coords = points.map((p, i) => ({ x: xScale(i), y: yScale(p.p90_kw) }));
   const p50Coords = points.map((p, i) => ({ x: xScale(i), y: yScale(p.p50_kw) }));
   const p10Coords = points.map((p, i) => ({ x: xScale(i), y: yScale(p.p10_kw) }));
 
   const pathFromCoords = (coords: { x: number; y: number }[]) =>
-    coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+    coords
+      .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
+      .join(" ");
 
   const p90Path = pathFromCoords(p90Coords);
   const p50Path = pathFromCoords(p50Coords);
   const p10Path = pathFromCoords(p10Coords);
 
-  // Uncertainty Ribbon Area (P90 forward, P10 reverse)
   const ribbonPath = `${p90Path} ${p10Coords
     .slice()
     .reverse()
     .map((c) => `L${c.x.toFixed(1)},${c.y.toFixed(1)}`)
     .join(" ")} Z`;
 
-  // Grid ticks
   const yTicks = 4;
   const yGrid = Array.from({ length: yTicks + 1 }, (_, i) => {
     const val = minVal + ((maxVal - minVal) * i) / yTicks;
@@ -76,7 +87,10 @@ export default function ProbabilisticBandChart({
     .map((p) => {
       const idx = points.indexOf(p);
       const d = new Date(p.forecast_time);
-      const label = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      const label = `${d.getHours().toString().padStart(2, "0")}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
       return { x: xScale(idx), label };
     });
 
@@ -88,7 +102,6 @@ export default function ProbabilisticBandChart({
     const mouseX = e.clientX - rect.left;
     const normX = (mouseX / rect.width) * W;
 
-    // Find nearest point
     let nearestIdx = 0;
     let minDiff = Infinity;
     for (let i = 0; i < points.length; i++) {
@@ -104,19 +117,33 @@ export default function ProbabilisticBandChart({
   const getRiskBadgeColor = (level: string) => {
     switch (level) {
       case "critical":
-        return "#e85252";
+        return COLORS.critical;
       case "high":
-        return "#f0a832";
+        return COLORS.high;
       case "medium":
-        return "#3dbd6e";
+        return COLORS.p50;
       default:
-        return "rgba(122, 158, 133, 0.7)";
+        return COLORS.muted;
     }
   };
 
+  const toggleStyle = (active: boolean, color: string): React.CSSProperties => ({
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.4rem",
+    color: active ? color : COLORS.muted,
+    opacity: active ? 1 : 0.45,
+    fontWeight: 500,
+    fontSize: "0.8rem",
+    fontFamily: "inherit",
+    padding: 0,
+  });
+
   return (
     <div style={{ position: "relative" }}>
-      {/* Interactive Legend & Filter Toggles */}
       <div
         style={{
           display: "flex",
@@ -125,109 +152,53 @@ export default function ProbabilisticBandChart({
           flexWrap: "wrap",
           gap: "0.75rem",
           marginBottom: "0.85rem",
-          padding: "0.5rem 0.75rem",
-          background: "rgba(255, 255, 255, 0.02)",
-          borderRadius: 8,
-          border: "1px solid var(--dash-border)",
-          fontSize: "0.82rem",
+          padding: "0.65rem 0",
+          borderBottom: `1px solid ${COLORS.line}`,
+          fontSize: "0.8rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => setShowP90(!showP90)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: showP90 ? "#f0a832" : "var(--dash-muted)",
-              opacity: showP90 ? 1 : 0.5,
-              fontWeight: 500,
-            }}
-          >
-            <span style={{ width: 14, height: 2, background: "#f0a832", borderTop: "2px dashed #f0a832" }} />
-            P90 (Upper 90%)
+        <div style={{ display: "flex", alignItems: "center", gap: "1.1rem", flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setShowP90(!showP90)} style={toggleStyle(showP90, COLORS.p90)}>
+            <span style={{ width: 14, height: 2, background: COLORS.p90 }} />
+            P90
           </button>
-
-          <button
-            type="button"
-            onClick={() => setShowP50(!showP50)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: showP50 ? "#3dbd6e" : "var(--dash-muted)",
-              opacity: showP50 ? 1 : 0.5,
-              fontWeight: 600,
-            }}
-          >
-            <span style={{ width: 14, height: 3, background: "#3dbd6e", borderRadius: 2 }} />
-            P50 (Median Expected)
+          <button type="button" onClick={() => setShowP50(!showP50)} style={toggleStyle(showP50, COLORS.p50)}>
+            <span style={{ width: 14, height: 3, background: COLORS.p50 }} />
+            P50
           </button>
-
-          <button
-            type="button"
-            onClick={() => setShowP10(!showP10)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: showP10 ? "#5b9bd5" : "var(--dash-muted)",
-              opacity: showP10 ? 1 : 0.5,
-              fontWeight: 500,
-            }}
-          >
-            <span style={{ width: 14, height: 2, background: "#5b9bd5", borderTop: "2px dotted #5b9bd5" }} />
-            P10 (Lower 10%)
+          <button type="button" onClick={() => setShowP10(!showP10)} style={toggleStyle(showP10, COLORS.p10)}>
+            <span style={{ width: 14, height: 2, background: COLORS.p10 }} />
+            P10
           </button>
-
           <button
             type="button"
             onClick={() => setShowRibbon(!showRibbon)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: showRibbon ? "var(--dash-text)" : "var(--dash-muted)",
-              opacity: showRibbon ? 1 : 0.5,
-            }}
+            style={toggleStyle(showRibbon, "var(--ink)")}
           >
             <span
               style={{
                 width: 14,
                 height: 10,
-                background: "linear-gradient(180deg, rgba(240,168,50,0.3), rgba(61,189,110,0.15))",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 2,
+                background: "rgba(26,58,42,0.12)",
+                border: `1px solid ${COLORS.line}`,
               }}
             />
-            Uncertainty Ribbon
+            Band
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", color: "var(--dash-muted)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", color: COLORS.muted }}>
           <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#e85252" }} /> Critical Ramp
+            <span style={{ width: 7, height: 7, background: COLORS.critical, borderRadius: 1 }} />
+            Critical
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f0a832" }} /> High Ramp
+            <span style={{ width: 7, height: 7, background: COLORS.high, borderRadius: 1 }} />
+            High
           </span>
         </div>
       </div>
 
-      {/* SVG Chart */}
       <div className="dash-chart-wrap" style={{ position: "relative" }}>
         <svg
           ref={svgRef}
@@ -235,20 +206,16 @@ export default function ProbabilisticBandChart({
           className="dash-chart-svg"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoverIndex(null)}
-          style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair" }}
+          style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair", minWidth: 480 }}
         >
           <defs>
             <linearGradient id="probRibbonGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f0a832" stopOpacity="0.32" />
-              <stop offset="50%" stopColor="#3dbd6e" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#5b9bd5" stopOpacity="0.12" />
+              <stop offset="0%" stopColor={COLORS.p90} stopOpacity="0.18" />
+              <stop offset="50%" stopColor={COLORS.p50} stopOpacity="0.1" />
+              <stop offset="100%" stopColor={COLORS.p10} stopOpacity="0.06" />
             </linearGradient>
-            <filter id="p50Glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#3dbd6e" floodOpacity="0.4" />
-            </filter>
           </defs>
 
-          {/* Grid lines and Y-axis */}
           {yGrid.map(({ y, label }) => (
             <g key={label}>
               <line
@@ -256,7 +223,7 @@ export default function ProbabilisticBandChart({
                 y1={y}
                 x2={W - PAD.right}
                 y2={y}
-                stroke="rgba(255,255,255,0.06)"
+                stroke={COLORS.line}
                 strokeDasharray="2 3"
               />
               <text
@@ -264,14 +231,13 @@ export default function ProbabilisticBandChart({
                 y={y + 4}
                 textAnchor="end"
                 fontSize="10"
-                fill="rgba(122,158,133,0.8)"
+                fill={COLORS.muted}
               >
                 {label}
               </text>
             </g>
           ))}
 
-          {/* X-axis ticks */}
           {xGrid.map(({ x, label }) => (
             <text
               key={label + x}
@@ -279,60 +245,49 @@ export default function ProbabilisticBandChart({
               y={H - 14}
               textAnchor="middle"
               fontSize="10"
-              fill="rgba(122,158,133,0.8)"
+              fill={COLORS.muted}
             >
               {label}
             </text>
           ))}
 
-          {/* Uncertainty Ribbon */}
           {showRibbon && (
-            <path
-              d={ribbonPath}
-              fill="url(#probRibbonGrad)"
-              stroke="none"
-              style={{ transition: "all 0.2s ease" }}
-            />
+            <path d={ribbonPath} fill="url(#probRibbonGrad)" stroke="none" />
           )}
 
-          {/* P90 Upper Bound */}
           {showP90 && (
             <path
               d={p90Path}
               fill="none"
-              stroke="#f0a832"
+              stroke={COLORS.p90}
               strokeWidth="1.75"
               strokeDasharray="4 3"
               strokeLinecap="round"
             />
           )}
 
-          {/* P10 Lower Bound */}
           {showP10 && (
             <path
               d={p10Path}
               fill="none"
-              stroke="#5b9bd5"
+              stroke={COLORS.p10}
               strokeWidth="1.75"
               strokeDasharray="3 3"
               strokeLinecap="round"
             />
           )}
 
-          {/* P50 Median Forecast */}
           {showP50 && (
             <path
               d={p50Path}
               fill="none"
-              stroke="#3dbd6e"
-              strokeWidth="2.75"
+              stroke={COLORS.p50}
+              strokeWidth="2.25"
               strokeLinecap="round"
               strokeLinejoin="round"
-              filter="url(#p50Glow)"
             />
           )}
 
-          {/* Ramp Risk Event Markers (High & Critical) */}
           {points.map((p, idx) => {
             if (p.ramp_risk_level !== "high" && p.ramp_risk_level !== "critical") {
               return null;
@@ -340,34 +295,21 @@ export default function ProbabilisticBandChart({
             const cx = xScale(idx);
             const cy = yScale(p.p50_kw);
             const isCritical = p.ramp_risk_level === "critical";
-            const color = isCritical ? "#e85252" : "#f0a832";
+            const color = isCritical ? COLORS.critical : COLORS.high;
 
             return (
               <g key={`ramp-marker-${idx}`}>
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={isCritical ? 7 : 5}
+                <rect
+                  x={cx - (isCritical ? 4 : 3)}
+                  y={cy - (isCritical ? 4 : 3)}
+                  width={isCritical ? 8 : 6}
+                  height={isCritical ? 8 : 6}
                   fill={color}
-                  stroke="#121f18"
-                  strokeWidth="2"
                 />
-                {isCritical && (
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r="12"
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="1.5"
-                    strokeOpacity="0.5"
-                  />
-                )}
               </g>
             );
           })}
 
-          {/* Hover Crosshair and Focus Ring */}
           {hoverIndex != null && activePoint && (
             <g>
               <line
@@ -375,31 +317,31 @@ export default function ProbabilisticBandChart({
                 y1={PAD.top}
                 x2={xScale(hoverIndex)}
                 y2={PAD.top + innerH}
-                stroke="rgba(255,255,255,0.4)"
+                stroke={COLORS.muted}
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
               <circle
                 cx={xScale(hoverIndex)}
                 cy={yScale(activePoint.p50_kw)}
-                r="6"
-                fill="#3dbd6e"
+                r="5"
+                fill={COLORS.p50}
                 stroke="#fff"
                 strokeWidth="2"
               />
               <circle
                 cx={xScale(hoverIndex)}
                 cy={yScale(activePoint.p90_kw)}
-                r="4"
-                fill="#f0a832"
+                r="3.5"
+                fill={COLORS.p90}
                 stroke="#fff"
                 strokeWidth="1.5"
               />
               <circle
                 cx={xScale(hoverIndex)}
                 cy={yScale(activePoint.p10_kw)}
-                r="4"
-                fill="#5b9bd5"
+                r="3.5"
+                fill={COLORS.p10}
                 stroke="#fff"
                 strokeWidth="1.5"
               />
@@ -407,23 +349,22 @@ export default function ProbabilisticBandChart({
           )}
         </svg>
 
-        {/* Hover Tooltip Overlay */}
         {hoverIndex != null && activePoint && (
           <div
             style={{
               position: "absolute",
               top: 12,
               right: 12,
-              background: "rgba(18, 31, 24, 0.94)",
-              backdropFilter: "blur(8px)",
+              background: "var(--panel)",
               border: `1px solid ${getRiskBadgeColor(activePoint.ramp_risk_level)}`,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-              borderRadius: 8,
-              padding: "0.85rem 1.1rem",
-              fontSize: "0.82rem",
-              minWidth: 260,
+              borderRadius: 2,
+              padding: "0.85rem 1rem",
+              fontSize: "0.8rem",
+              minWidth: 220,
+              maxWidth: "min(280px, calc(100% - 24px))",
               pointerEvents: "none",
               zIndex: 10,
+              boxShadow: "0 8px 24px rgba(20,24,20,0.12)",
             }}
           >
             <div
@@ -431,79 +372,85 @@ export default function ProbabilisticBandChart({
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: "0.5rem",
                 marginBottom: "0.5rem",
-                borderBottom: "1px solid var(--dash-border)",
+                borderBottom: `1px solid ${COLORS.line}`,
                 paddingBottom: "0.4rem",
               }}
             >
-              <span style={{ fontWeight: 600, color: "var(--dash-text)" }}>
+              <span style={{ fontWeight: 600 }}>
                 {new Date(activePoint.forecast_time).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </span>
               <span
+                className="dash-badge"
                 style={{
-                  textTransform: "uppercase",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  padding: "0.15rem 0.5rem",
-                  borderRadius: 4,
-                  background: `${getRiskBadgeColor(activePoint.ramp_risk_level)}22`,
+                  background: `color-mix(in srgb, ${getRiskBadgeColor(activePoint.ramp_risk_level)} 12%, transparent)`,
                   color: getRiskBadgeColor(activePoint.ramp_risk_level),
-                  border: `1px solid ${getRiskBadgeColor(activePoint.ramp_risk_level)}`,
                 }}
               >
-                {activePoint.ramp_risk_level} Ramp Risk
+                {activePoint.ramp_risk_level}
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.6rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.35rem",
+                marginBottom: "0.55rem",
+              }}
+            >
               <div>
-                <span style={{ color: "var(--dash-muted)", fontSize: "0.75rem" }}>P50 Expected:</span>{" "}
-                <strong style={{ color: "#3dbd6e" }}>{activePoint.p50_kw.toFixed(1)} kW</strong>
+                <span style={{ color: COLORS.muted, fontSize: "0.72rem" }}>P50 </span>
+                <strong style={{ color: COLORS.p50 }}>{activePoint.p50_kw.toFixed(1)}</strong>
               </div>
               <div>
-                <span style={{ color: "var(--dash-muted)", fontSize: "0.75rem" }}>P90 Optimistic:</span>{" "}
-                <strong style={{ color: "#f0a832" }}>{activePoint.p90_kw.toFixed(1)} kW</strong>
+                <span style={{ color: COLORS.muted, fontSize: "0.72rem" }}>P90 </span>
+                <strong style={{ color: COLORS.p90 }}>{activePoint.p90_kw.toFixed(1)}</strong>
               </div>
               <div>
-                <span style={{ color: "var(--dash-muted)", fontSize: "0.75rem" }}>P10 Conservative:</span>{" "}
-                <strong style={{ color: "#5b9bd5" }}>{activePoint.p10_kw.toFixed(1)} kW</strong>
+                <span style={{ color: COLORS.muted, fontSize: "0.72rem" }}>P10 </span>
+                <strong style={{ color: COLORS.p10 }}>{activePoint.p10_kw.toFixed(1)}</strong>
               </div>
               <div>
-                <span style={{ color: "var(--dash-muted)", fontSize: "0.75rem" }}>Uncertainty Band:</span>{" "}
-                <strong style={{ color: "var(--dash-text)" }}>{activePoint.uncertainty_band_kw.toFixed(1)} kW</strong>
+                <span style={{ color: COLORS.muted, fontSize: "0.72rem" }}>Band </span>
+                <strong>{activePoint.uncertainty_band_kw.toFixed(1)}</strong>
               </div>
             </div>
 
-            <div style={{ borderTop: "1px solid var(--dash-border)", paddingTop: "0.4rem", fontSize: "0.78rem" }}>
+            <div
+              style={{
+                borderTop: `1px solid ${COLORS.line}`,
+                paddingTop: "0.4rem",
+                fontSize: "0.76rem",
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>
-                <span style={{ color: "var(--dash-muted)" }}>Ramp Rate:</span>
-                <span
-                  style={{
-                    color:
-                      activePoint.ramp_rate_kw_per_min < 0
-                        ? "#e85252"
-                        : activePoint.ramp_rate_kw_per_min > 0
-                        ? "#3dbd6e"
-                        : "var(--dash-muted)",
-                    fontWeight: 600,
-                  }}
-                >
+                <span style={{ color: COLORS.muted }}>Ramp</span>
+                <span style={{ fontWeight: 600 }}>
                   {activePoint.ramp_rate_kw_per_min > 0 ? "+" : ""}
-                  {activePoint.ramp_rate_kw_per_min.toFixed(2)} kW/min (
-                  {activePoint.ramp_direction.toUpperCase()})
+                  {activePoint.ramp_rate_kw_per_min.toFixed(2)} kW/min
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                <span style={{ color: "var(--dash-muted)" }}>BESS Reserve Buffer:</span>
-                <span style={{ color: "var(--dash-sun)", fontWeight: 600 }}>
+                <span style={{ color: COLORS.muted }}>BESS</span>
+                <span style={{ color: COLORS.p90, fontWeight: 600 }}>
                   {activePoint.bess_reserve_recommendation_kw.toFixed(1)} kW
                 </span>
               </div>
-              <div style={{ color: "var(--dash-muted)", fontStyle: "italic", marginTop: "0.35rem", fontSize: "0.74rem" }}>
-                💡 {activePoint.reserve_action}
+              <div
+                style={{
+                  color: COLORS.muted,
+                  marginTop: "0.3rem",
+                  fontSize: "0.74rem",
+                  lineHeight: 1.4,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {activePoint.reserve_action}
               </div>
             </div>
           </div>
