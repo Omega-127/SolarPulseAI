@@ -28,28 +28,20 @@ export default function PlantsPage() {
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.75rem",
-        }}
-      >
-        <div>
-          <h1 className="dash-section-title" style={{ marginBottom: "0.25rem" }}>
-            Plants
-          </h1>
-          <p style={{ color: "var(--dash-muted)", fontSize: "0.88rem" }}>
-            Manage your registered solar generation sites.
+      <div className="dash-page-header-row">
+        <div className="dash-page-header" style={{ marginBottom: 0 }}>
+          <p className="dash-eyebrow">Sites</p>
+          <h1 className="dash-section-title">Plants</h1>
+          <p className="dash-page-sub">
+            Registered solar generation sites and capacity.
           </p>
         </div>
         <Link href="/dashboard/plants/new" className="dash-btn dash-btn-primary">
-          + Add Plant
+          Add plant
         </Link>
       </div>
 
-      {error && <div className="dash-error">⚠ {error}</div>}
+      {error && <div className="dash-error">{error}</div>}
 
       {loading ? (
         <div className="dash-loading">
@@ -64,11 +56,11 @@ export default function PlantsPage() {
             className="dash-btn dash-btn-primary"
             style={{ marginTop: "1rem" }}
           >
-            Register your first plant →
+            Register your first plant
           </Link>
         </div>
       ) : (
-        <div className="dash-card">
+        <div className="dash-card" style={{ padding: 0 }}>
           <div className="dash-table-wrap">
             <table className="dash-table">
               <thead>
@@ -85,32 +77,29 @@ export default function PlantsPage() {
               <tbody>
                 {plants.map((plant) => (
                   <tr key={plant.id}>
-                    <td style={{ fontWeight: 600, color: "var(--dash-text)" }}>
-                      {plant.name}
-                    </td>
+                    <td style={{ fontWeight: 600 }}>{plant.name}</td>
                     <td style={{ color: "var(--dash-muted)" }}>
                       {plant.location ??
                         `${plant.latitude.toFixed(3)}, ${plant.longitude.toFixed(3)}`}
                     </td>
-                    <td>{plant.capacity_kw} kW</td>
-                    <td>{plant.inverter_capacity_kw} kW</td>
-                    <td>
+                    <td className="nowrap">{plant.capacity_kw} kW</td>
+                    <td className="nowrap">{plant.inverter_capacity_kw} kW</td>
+                    <td className="nowrap">
                       {plant.is_active ? (
                         <span className="dash-badge dash-badge-green">Active</span>
                       ) : (
                         <span className="dash-badge dash-badge-muted">Inactive</span>
                       )}
                     </td>
-                    <td style={{ color: "var(--dash-muted)" }}>
+                    <td className="nowrap" style={{ color: "var(--dash-muted)" }}>
                       {new Date(plant.created_at).toLocaleDateString()}
                     </td>
-                    <td>
+                    <td className="nowrap">
                       <Link
                         href={`/dashboard/plants/${plant.id}`}
-                        className="dash-btn dash-btn-ghost"
-                        style={{ fontSize: "0.78rem", padding: "0.3rem 0.7rem" }}
+                        className="dash-btn dash-btn-ghost dash-btn-sm"
                       >
-                        View →
+                        View
                       </Link>
                     </td>
                   </tr>
