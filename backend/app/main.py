@@ -36,13 +36,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown logic."""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    # Ensure database tables exist (e.g. SQLite for local dev or PostgreSQL)
+    # Ensure database tables exist and seed demo plants if empty
     try:
         from app.core.database import init_db
         await init_db()
         logger.info("Database tables initialized successfully.")
+
+        from app.scripts.seed_data import seed
+        await seed()
+        logger.info("Demo plants and operational data verified/seeded.")
     except Exception as exc:
-        logger.warning(f"Could not automatically initialize database tables: {exc}")
+        logger.warning(f"Could not automatically initialize/seed database: {exc}")
 
     yield
 

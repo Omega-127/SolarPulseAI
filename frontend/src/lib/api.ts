@@ -157,6 +157,47 @@ export interface ForecastSummary {
   model_name: string;
 }
 
+export interface ProbabilisticForecastPoint {
+  forecast_time: string;
+  p10_kw: number;
+  p50_kw: number;
+  p90_kw: number;
+  uncertainty_band_kw: number;
+  relative_uncertainty_pct: number;
+  ramp_rate_kw_per_min: number;
+  ramp_rate_pct_per_min: number;
+  ramp_direction: "up" | "down" | "stable";
+  ramp_risk_level: "low" | "medium" | "high" | "critical";
+  cloud_impact_factor: number;
+  bess_reserve_recommendation_kw: number;
+  reserve_action: string;
+}
+
+export interface RampRiskSummary {
+  max_ramp_rate_kw_per_min: number;
+  max_ramp_down_kw_per_min: number;
+  max_ramp_up_kw_per_min: number;
+  ramp_risk_score: number;
+  highest_risk_level: "low" | "medium" | "high" | "critical";
+  high_risk_event_count: number;
+  critical_risk_event_count: number;
+  avg_uncertainty_band_kw: number;
+  recommended_bess_capacity_kw: number;
+  primary_action_advisory: string;
+}
+
+export interface ProbabilisticForecastResponse {
+  plant_id: number;
+  plant_name: string;
+  capacity_kw: number;
+  generated_at: string;
+  horizon_minutes: number;
+  interval_minutes: number;
+  model_name: string;
+  points: ProbabilisticForecastPoint[];
+  summary: RampRiskSummary;
+}
+
 export interface Alert {
   id: number;
   plant_id: number;
@@ -221,6 +262,10 @@ export const forecastApi = {
     apiFetch<ForecastRecord>(
       `/api/v1/forecast/${plantId}/generate?horizon_minutes=${horizonMinutes}`,
       { method: "POST" }
+    ),
+  getProbabilistic: (plantId: number, horizonMinutes = 240, intervalMinutes = 15) =>
+    apiFetch<ProbabilisticForecastResponse>(
+      `/api/v1/forecast/${plantId}/probabilistic?horizon_minutes=${horizonMinutes}&interval_minutes=${intervalMinutes}`
     ),
 };
 
