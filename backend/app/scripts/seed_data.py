@@ -1,9 +1,19 @@
 """
 app/scripts/seed_data.py
 
-Seeds the database with initial roles, permissions, a default admin user,
-two demo solar plants with configurations, 48-hour forecast curves,
-SCADA readings, and anomaly alerts.
+Seeds the database with demo roles, an admin user, and 7 real large-scale
+Indian solar plants with realistic configurations, 48-hour forecast curves,
+SCADA telemetry, and anomaly alerts.
+
+Plants seeded
+-------------
+1. Bhadla Solar Park – Block A        (Rajasthan,  2,245 MW site)
+2. Pavagada Solar Park – Sector 2     (Karnataka,  2,050 MW site)
+3. Kamuthi Solar Power Project        (Tamil Nadu,   648 MW site)
+4. Rewa Ultra Mega Solar – Phase 1    (M.P.,         750 MW site)
+5. Charanka Solar Park – Cluster A    (Gujarat,      600 MW site)
+6. NP Kunta Ultra Mega Solar          (Andhra Pradesh, 900 MW site)
+7. Adani Mundra Solar Park            (Gujarat,      40 MW site)
 
 Usage:
     python -m app.scripts.seed_data
@@ -13,33 +23,197 @@ import asyncio
 import math
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, delete
+from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal, init_db
 from app.core.logging import get_logger
 from app.core.security import hash_password
-from app.models.user import Role, User
-from app.models.plant import Plant, PlantConfig
-from app.models.forecast import ForecastRecord
 from app.models.alert import AnomalyAlert
+from app.models.forecast import ForecastRecord
+from app.models.plant import Plant, PlantConfig
 from app.models.scada import ScadaReading
+from app.models.user import Role, User
 
 logger = get_logger(__name__)
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def generate_diurnal_power(hour_float: float, peak_kw: float) -> float:
-    """Generate realistic solar generation curve based on hour of day (0-24)."""
-    # Sun shines approximately 6:00 to 18:30
-    sunrise = 6.0
-    sunset = 18.5
+    """Realistic solar generation curve: half-sine between sunrise and sunset."""
+    sunrise, sunset = 6.0, 18.5
     if hour_float <= sunrise or hour_float >= sunset:
         return 0.0
-    # Solar noon around 12.25
-    solar_noon = 12.25
-    # Normalize to half-sine curve
     phase = (hour_float - sunrise) / (sunset - sunrise) * math.pi
-    power = peak_kw * math.sin(phase) ** 1.3
-    return max(0.0, round(power, 2))
+    return max(0.0, round(peak_kw * math.sin(phase) ** 1.3, 2))
+
+
+# ── Real Indian solar plant definitions ───────────────────────────────────────
+
+DEMO_PLANTS = [
+    # ── 1. Bhadla Solar Park – Block A (Rajasthan) ───────────────────────────
+    dict(
+        name="Bhadla Solar Park – Block A",
+        location="Phalodi, Rajasthan, India",
+        latitude=27.5385,
+        longitude=71.9161,
+        timezone="Asia/Kolkata",
+        capacity_kw=50_000.0,
+        inverter_capacity_kw=45_000.0,
+        module_count=130_000,
+        config=dict(tilt=26.0, azimuth=180.0, efficiency=0.195,
+                    soiling_threshold=5.0, clipping_threshold=95.0,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=43_200.0,
+        base_temp_c=38.0,
+        alerts=[
+            dict(alert_type="shortfall", severity="CRITICAL",
+                 message="Inverter Station 3 trip — 12.4 MW sudden deficit during high irradiance",
+                 expected=42_500.0, actual=30_100.0, deviation=29.18,
+                 hours_ago=2.25, resolved=False),
+            dict(alert_type="soiling", severity="WARNING",
+                 message="Sub-array 4B soiling deficit — 14.8% shortfall vs clear-sky model",
+                 expected=38_200.0, actual=32_550.0, deviation=14.79,
+                 hours_ago=5.0, resolved=False),
+        ],
+    ),
+    # ── 2. Pavagada Solar Park – Sector 2 (Karnataka) ────────────────────────
+    dict(
+        name="Pavagada Solar Park – Sector 2",
+        location="Tumakuru, Karnataka, India",
+        latitude=14.1030,
+        longitude=77.2794,
+        timezone="Asia/Kolkata",
+        capacity_kw=25_000.0,
+        inverter_capacity_kw=22_500.0,
+        module_count=65_000,
+        config=dict(tilt=15.0, azimuth=180.0, efficiency=0.202,
+                    soiling_threshold=4.5, clipping_threshold=95.0,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=21_800.0,
+        base_temp_c=32.0,
+        alerts=[
+            dict(alert_type="clipping", severity="WARNING",
+                 message="AC clipping on Inverters 1-4 at 22.5 MW threshold",
+                 expected=23_800.0, actual=22_500.0, deviation=5.46,
+                 hours_ago=1.17, resolved=False),
+        ],
+    ),
+    # ── 3. Kamuthi Solar Power Project (Tamil Nadu) ───────────────────────────
+    dict(
+        name="Kamuthi Solar Power Project",
+        location="Kamuthi, Tamil Nadu, India",
+        latitude=9.3691,
+        longitude=78.7750,
+        timezone="Asia/Kolkata",
+        capacity_kw=648_000.0,
+        inverter_capacity_kw=580_000.0,
+        module_count=2_500_000,
+        config=dict(tilt=11.0, azimuth=180.0, efficiency=0.188,
+                    soiling_threshold=4.0, clipping_threshold=96.0,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=590_000.0,
+        base_temp_c=34.0,
+        alerts=[
+            dict(alert_type="soiling", severity="WARNING",
+                 message="Monsoon dust accumulation — row 14 irradiance 18% below baseline",
+                 expected=560_000.0, actual=459_200.0, deviation=18.0,
+                 hours_ago=3.0, resolved=False),
+            dict(alert_type="curtailment", severity="INFO",
+                 message="TANGEDCO scheduled curtailment resolved — nominal output restored",
+                 expected=540_000.0, actual=540_000.0, deviation=0.0,
+                 hours_ago=26.0, resolved=True),
+        ],
+    ),
+    # ── 4. Rewa Ultra Mega Solar – Phase 1 (Madhya Pradesh) ──────────────────
+    dict(
+        name="Rewa Ultra Mega Solar – Phase 1",
+        location="Rewa, Madhya Pradesh, India",
+        latitude=24.5362,
+        longitude=81.3036,
+        timezone="Asia/Kolkata",
+        capacity_kw=250_000.0,
+        inverter_capacity_kw=225_000.0,
+        module_count=750_000,
+        config=dict(tilt=24.0, azimuth=180.0, efficiency=0.198,
+                    soiling_threshold=5.0, clipping_threshold=95.0,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=228_000.0,
+        base_temp_c=36.0,
+        alerts=[
+            dict(alert_type="shortfall", severity="CRITICAL",
+                 message="Grid feeder fault — 45 MW offline, restoration in progress",
+                 expected=220_000.0, actual=175_000.0, deviation=20.45,
+                 hours_ago=0.5, resolved=False),
+        ],
+    ),
+    # ── 5. Charanka Solar Park – Cluster A (Gujarat) ──────────────────────────
+    dict(
+        name="Charanka Solar Park – Cluster A",
+        location="Patan, Gujarat, India",
+        latitude=23.8614,
+        longitude=71.1825,
+        timezone="Asia/Kolkata",
+        capacity_kw=600_000.0,
+        inverter_capacity_kw=540_000.0,
+        module_count=2_200_000,
+        config=dict(tilt=22.0, azimuth=180.0, efficiency=0.192,
+                    soiling_threshold=4.8, clipping_threshold=95.0,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=540_000.0,
+        base_temp_c=40.0,
+        alerts=[
+            dict(alert_type="soiling", severity="WARNING",
+                 message="Dust storm (sandstorm) event — estimated 22% soiling loss across Cluster A",
+                 expected=510_000.0, actual=397_800.0, deviation=22.0,
+                 hours_ago=4.0, resolved=False),
+        ],
+    ),
+    # ── 6. NP Kunta Ultra Mega Solar (Andhra Pradesh) ─────────────────────────
+    dict(
+        name="NP Kunta Ultra Mega Solar",
+        location="Nandyal, Andhra Pradesh, India",
+        latitude=15.4769,
+        longitude=78.4832,
+        timezone="Asia/Kolkata",
+        capacity_kw=900_000.0,
+        inverter_capacity_kw=810_000.0,
+        module_count=3_200_000,
+        config=dict(tilt=16.0, azimuth=180.0, efficiency=0.200,
+                    soiling_threshold=4.5, clipping_threshold=95.5,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=820_000.0,
+        base_temp_c=35.0,
+        alerts=[
+            dict(alert_type="shortfall", severity="INFO",
+                 message="Scheduled transformer maintenance — 3 inverter stations offline",
+                 expected=800_000.0, actual=740_000.0, deviation=7.5,
+                 hours_ago=1.0, resolved=False),
+        ],
+    ),
+    # ── 7. Adani Mundra Solar Park (Gujarat) ──────────────────────────────────
+    dict(
+        name="Adani Mundra Solar Park",
+        location="Kutch, Gujarat, India",
+        latitude=22.7754,
+        longitude=69.6669,
+        timezone="Asia/Kolkata",
+        capacity_kw=40_000.0,
+        inverter_capacity_kw=36_000.0,
+        module_count=100_000,
+        config=dict(tilt=22.0, azimuth=180.0, efficiency=0.196,
+                    soiling_threshold=5.2, clipping_threshold=94.5,
+                    forecast_horizon_minutes=60),
+        peak_gen_kw=36_500.0,
+        base_temp_c=37.0,
+        alerts=[
+            dict(alert_type="clipping", severity="INFO",
+                 message="Mild clipping event on coastal inverter bank — sea-breeze cooling sufficient",
+                 expected=37_000.0, actual=36_000.0, deviation=2.7,
+                 hours_ago=0.75, resolved=True),
+        ],
+    ),
+]
 
 
 async def seed() -> None:
@@ -57,8 +231,10 @@ async def seed() -> None:
             await session.flush()
             logger.info("Created roles: admin, operator, viewer")
 
-        # ── 2. Admin User ──────────────────────────────────────────────────────
-        admin_user = await session.scalar(select(User).where(User.email == "admin@solarpulse.ai"))
+        # ── 2. Admin User ─────────────────────────────────────────────────────
+        admin_user = await session.scalar(
+            select(User).where(User.email == "admin@solarpulse.ai")
+        )
         if not admin_user:
             admin_user = User(
                 username="admin",
@@ -69,215 +245,130 @@ async def seed() -> None:
                 is_active=True,
             )
             session.add(admin_user)
-            logger.info("Created default admin user: admin@solarpulse.ai / admin12345")
+            logger.info("Created admin user: admin@solarpulse.ai / admin12345")
 
-        # ── 3. Demo Plant 1: Bhadla Solar Park ────────────────────────────────
-        plant_1 = await session.scalar(select(Plant).where(Plant.name == "Bhadla Solar Park - Block A"))
-        if not plant_1:
-            plant_1 = Plant(
-                name="Bhadla Solar Park - Block A",
-                location="Phalodi, Rajasthan, India",
-                latitude=27.5385,
-                longitude=71.9161,
-                timezone="Asia/Kolkata",
-                capacity_kw=50000.0,
-                inverter_capacity_kw=45000.0,
-                module_count=130000,
-                is_active=True,
-            )
-            session.add(plant_1)
-            await session.flush()
-
-            config_1 = PlantConfig(
-                plant_id=plant_1.id,
-                tilt=26.0,
-                azimuth=180.0,
-                efficiency=0.195,
-                soiling_threshold=5.0,
-                clipping_threshold=95.0,
-                forecast_horizon_minutes=60,
-            )
-            session.add(config_1)
-            logger.info(f"Created demo plant: {plant_1.name} (ID: {plant_1.id})")
-        else:
-            logger.info(f"Existing plant found: {plant_1.name} (ID: {plant_1.id})")
-
-        # ── 4. Demo Plant 2: Pavagada Solar Park ──────────────────────────────
-        plant_2 = await session.scalar(select(Plant).where(Plant.name == "Pavagada Solar Park - Sector 2"))
-        if not plant_2:
-            plant_2 = Plant(
-                name="Pavagada Solar Park - Sector 2",
-                location="Tumakuru, Karnataka, India",
-                latitude=14.1030,
-                longitude=77.2794,
-                timezone="Asia/Kolkata",
-                capacity_kw=25000.0,
-                inverter_capacity_kw=22500.0,
-                module_count=65000,
-                is_active=True,
-            )
-            session.add(plant_2)
-            await session.flush()
-
-            config_2 = PlantConfig(
-                plant_id=plant_2.id,
-                tilt=15.0,
-                azimuth=180.0,
-                efficiency=0.202,
-                soiling_threshold=4.5,
-                clipping_threshold=95.0,
-                forecast_horizon_minutes=60,
-            )
-            session.add(config_2)
-            logger.info(f"Created demo plant: {plant_2.name} (ID: {plant_2.id})")
-
-        # ── 5. Seed Forecast Records for Demo Plants ─────────────────────────
+        # ── 3. Demo Plants ────────────────────────────────────────────────────
         now = datetime.now(tz=timezone.utc).replace(minute=0, second=0, microsecond=0)
-        
-        # Check existing forecasts for plant_1
-        existing_fc = await session.scalar(
-            select(ForecastRecord.id).where(ForecastRecord.plant_id == plant_1.id)
-        )
-        if not existing_fc:
-            logger.info("Generating realistic 48-hour forecast series...")
-            forecasts = []
-            # 24 hours in past to 24 hours in future (48 hourly points)
-            for i in range(-24, 25):
-                t = now + timedelta(hours=i)
-                hour_val = (t.hour + t.minute / 60.0)
-                pred_1 = generate_diurnal_power(hour_val, peak_kw=43200.0)
-                actual_1 = (
-                    round(pred_1 * 0.96 + (math.sin(i * 1.5) * 800.0), 2)
-                    if i <= 0 and pred_1 > 0
-                    else (0.0 if i <= 0 else None)
-                )
 
-                forecasts.append(
-                    ForecastRecord(
-                        plant_id=plant_1.id,
+        for idx, pd in enumerate(DEMO_PLANTS):
+            plant = await session.scalar(
+                select(Plant).where(Plant.name == pd["name"])
+            )
+
+            if not plant:
+                plant = Plant(
+                    name=pd["name"],
+                    location=pd["location"],
+                    latitude=pd["latitude"],
+                    longitude=pd["longitude"],
+                    timezone=pd["timezone"],
+                    capacity_kw=pd["capacity_kw"],
+                    inverter_capacity_kw=pd["inverter_capacity_kw"],
+                    module_count=pd["module_count"],
+                    is_active=True,
+                )
+                session.add(plant)
+                await session.flush()
+
+                cfg = pd["config"]
+                session.add(PlantConfig(
+                    plant_id=plant.id,
+                    tilt=cfg["tilt"],
+                    azimuth=cfg["azimuth"],
+                    efficiency=cfg["efficiency"],
+                    soiling_threshold=cfg["soiling_threshold"],
+                    clipping_threshold=cfg["clipping_threshold"],
+                    forecast_horizon_minutes=cfg["forecast_horizon_minutes"],
+                ))
+                logger.info(f"  Created plant [{plant.id}]: {plant.name}")
+            else:
+                logger.info(f"  Existing plant [{plant.id}]: {plant.name}")
+
+            # ── Forecast records (48 h window) ────────────────────────────────
+            existing_fc = await session.scalar(
+                select(ForecastRecord.id).where(ForecastRecord.plant_id == plant.id)
+            )
+            if not existing_fc:
+                peak_kw = pd["peak_gen_kw"]
+                fc_batch = []
+                for i in range(-24, 25):
+                    t = now + timedelta(hours=i)
+                    hour_val = t.hour + t.minute / 60.0
+                    pred = generate_diurnal_power(hour_val, peak_kw)
+                    noise = math.sin(i * 1.5 + idx) * peak_kw * 0.018
+                    actual = (
+                        round(pred * 0.96 + noise, 2)
+                        if i <= 0 and pred > 0
+                        else (0.0 if i <= 0 else None)
+                    )
+                    fc_batch.append(ForecastRecord(
+                        plant_id=plant.id,
                         forecast_time=t,
                         generated_at=now - timedelta(hours=24),
-                        predicted_power_kw=pred_1,
-                        actual_power_kw=actual_1,
-                        confidence_lower=round(max(0.0, pred_1 * 0.88), 2),
-                        confidence_upper=round(pred_1 * 1.08, 2),
+                        predicted_power_kw=pred,
+                        actual_power_kw=actual,
+                        confidence_lower=round(max(0.0, pred * 0.88), 2),
+                        confidence_upper=round(pred * 1.08, 2),
                         model_name="SolarPulse-Hybrid-Ensemble",
                         model_version="2.1.0",
-                        physics_power_kw=round(pred_1 * 0.98, 2),
-                        ml_power_kw=pred_1,
-                    )
-                )
+                        physics_power_kw=round(pred * 0.98, 2),
+                        ml_power_kw=pred,
+                    ))
+                session.add_all(fc_batch)
+                logger.info(f"    → {len(fc_batch)} forecast records")
 
-                # Plant 2 forecasts
-                pred_2 = generate_diurnal_power(hour_val, peak_kw=21800.0)
-                actual_2 = (
-                    round(pred_2 * 0.98 + (math.cos(i * 1.2) * 450.0), 2)
-                    if i <= 0 and pred_2 > 0
-                    else (0.0 if i <= 0 else None)
-                )
-                forecasts.append(
-                    ForecastRecord(
-                        plant_id=plant_2.id,
-                        forecast_time=t,
-                        generated_at=now - timedelta(hours=24),
-                        predicted_power_kw=pred_2,
-                        actual_power_kw=actual_2,
-                        confidence_lower=round(max(0.0, pred_2 * 0.89), 2),
-                        confidence_upper=round(pred_2 * 1.07, 2),
-                        model_name="SolarPulse-Hybrid-Ensemble",
-                        model_version="2.1.0",
-                        physics_power_kw=round(pred_2 * 0.99, 2),
-                        ml_power_kw=pred_2,
-                    )
-                )
-
-            session.add_all(forecasts)
-            logger.info(f"Inserted {len(forecasts)} forecast records.")
-
-        # ── 6. Seed Anomaly Alerts ───────────────────────────────────────────
-        existing_alerts = await session.scalar(
-            select(AnomalyAlert.id).where(AnomalyAlert.plant_id == plant_1.id)
-        )
-        if not existing_alerts:
-            alerts = [
-                AnomalyAlert(
-                    plant_id=plant_1.id,
-                    timestamp=now - timedelta(hours=2, minutes=15),
-                    alert_type="shortfall",
-                    severity="CRITICAL",
-                    message="Inverter Station 3 trip: 12.4 MW sudden deficit detected during high irradiance",
-                    expected_power_kw=42500.0,
-                    actual_power_kw=30100.0,
-                    deviation_percent=29.18,
-                    is_resolved=False,
-                ),
-                AnomalyAlert(
-                    plant_id=plant_1.id,
-                    timestamp=now - timedelta(hours=5),
-                    alert_type="soiling",
-                    severity="WARNING",
-                    message="Sub-array 4B soiling deficit: Sustained 14.8% power shortfall against physical clear-sky model",
-                    expected_power_kw=38200.0,
-                    actual_power_kw=32550.0,
-                    deviation_percent=14.79,
-                    is_resolved=False,
-                ),
-                AnomalyAlert(
-                    plant_id=plant_2.id,
-                    timestamp=now - timedelta(hours=1, minutes=10),
-                    alert_type="clipping",
-                    severity="WARNING",
-                    message="Inverter capacity saturation: AC clipping detected on Inverters 1-4 at 22.5 MW threshold",
-                    expected_power_kw=23800.0,
-                    actual_power_kw=22500.0,
-                    deviation_percent=5.46,
-                    is_resolved=False,
-                ),
-                AnomalyAlert(
-                    plant_id=plant_1.id,
-                    timestamp=now - timedelta(days=1, hours=3),
-                    alert_type="curtailment",
-                    severity="INFO",
-                    message="Scheduled grid frequency curtailment resolved; plant output restored to nominal dispatch",
-                    expected_power_kw=35000.0,
-                    actual_power_kw=35000.0,
-                    deviation_percent=0.0,
-                    is_resolved=True,
-                    resolved_at=now - timedelta(days=1),
-                ),
-            ]
-            session.add_all(alerts)
-            logger.info(f"Inserted {len(alerts)} sample anomaly alerts.")
-
-        # ── 7. Seed Recent SCADA Telemetry ───────────────────────────────────
-        existing_scada = await session.scalar(
-            select(ScadaReading.id).where(ScadaReading.plant_id == plant_1.id)
-        )
-        if not existing_scada:
-            readings = []
-            for m in range(0, 180, 10):  # Last 3 hours, every 10 min
-                t = now - timedelta(minutes=m)
-                h = t.hour + t.minute / 60.0
-                gen = generate_diurnal_power(h, peak_kw=43000.0)
-                irr = round(gen / 50.0 + 20.0, 1) if gen > 0 else 0.0
-                readings.append(
-                    ScadaReading(
-                        plant_id=plant_1.id,
+            # ── SCADA telemetry (last 3 hours, every 10 min) ─────────────────
+            existing_scada = await session.scalar(
+                select(ScadaReading.id).where(ScadaReading.plant_id == plant.id)
+            )
+            if not existing_scada:
+                base_temp = pd["base_temp_c"]
+                peak_kw = pd["peak_gen_kw"]
+                scada_batch = []
+                for m in range(0, 180, 10):
+                    t = now - timedelta(minutes=m)
+                    h = t.hour + t.minute / 60.0
+                    gen = generate_diurnal_power(h, peak_kw)
+                    irr = round(gen / (peak_kw / 850.0) + 15.0, 1) if gen > 0 else 0.0
+                    scada_batch.append(ScadaReading(
+                        plant_id=plant.id,
                         timestamp=t,
                         power_kw=gen,
                         irradiance_w_m2=irr,
-                        temperature_c=34.2,
-                        wind_speed_m_s=3.4,
-                        module_temperature_c=48.5 if gen > 0 else 28.0,
+                        temperature_c=base_temp + (2.0 if gen > 0 else -4.0),
+                        wind_speed_m_s=3.2 + idx * 0.3,
+                        module_temperature_c=base_temp + 12.0 if gen > 0 else base_temp - 6.0,
                         inverter_power_kw=round(gen * 0.985, 2),
                         expected_power_kw=gen,
-                    )
-                )
-            session.add_all(readings)
-            logger.info(f"Inserted {len(readings)} SCADA telemetry points.")
+                    ))
+                session.add_all(scada_batch)
+                logger.info(f"    → {len(scada_batch)} SCADA readings")
+
+            # ── Alerts ────────────────────────────────────────────────────────
+            existing_alerts = await session.scalar(
+                select(AnomalyAlert.id).where(AnomalyAlert.plant_id == plant.id)
+            )
+            if not existing_alerts:
+                alert_batch = []
+                for ad in pd["alerts"]:
+                    alert_batch.append(AnomalyAlert(
+                        plant_id=plant.id,
+                        timestamp=now - timedelta(hours=ad["hours_ago"]),
+                        alert_type=ad["alert_type"],
+                        severity=ad["severity"],
+                        message=ad["message"],
+                        expected_power_kw=ad["expected"],
+                        actual_power_kw=ad["actual"],
+                        deviation_percent=ad["deviation"],
+                        is_resolved=ad["resolved"],
+                        resolved_at=(now - timedelta(hours=ad["hours_ago"] - 1)
+                                     if ad["resolved"] else None),
+                    ))
+                session.add_all(alert_batch)
+                logger.info(f"    → {len(alert_batch)} alerts")
 
         await session.commit()
-        logger.info("Demo powerplant seeding completed successfully!")
+        logger.info("✅ Seeding complete — 7 Indian solar plants ready.")
 
 
 if __name__ == "__main__":
