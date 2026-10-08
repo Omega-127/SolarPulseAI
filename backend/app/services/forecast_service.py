@@ -37,6 +37,7 @@ from app.models.scada import ScadaReading
 from app.schemas.forecast import ForecastResponse, ForecastSummary
 from app.services.clipping_service import calculate_clipping
 from app.services.soiling_service import calculate_soiling_loss
+from app.services import weather_service
 
 logger = get_logger(__name__)
 
@@ -199,8 +200,30 @@ async def generate_forecast(
     )
     latest_scada: Optional[ScadaReading] = result.scalar_one_or_none()
 
-    irradiance = latest_scada.irradiance_w_m2 if latest_scada else None
-    temperature = latest_scada.temperature_c if latest_scada else None
+    # ── Weather data (WeatherAPI.com or mock fallback) ────────────────────────
+    weather: Optional[weather_service.WeatherPoint] = None
+    try:
+        wd = await weather_service.get_current_weather(plant.latitude, plant.longitude)
+        weather = wd.current
+        logger.debug(
+            f"Weather for plant {plant.id}: "
+            f"temp={weather.temperature_c}°C irr={weather.irradiance_w_m2:.0f} W/m² "
+            f"source={wd.source}"
+        )
+    except Exception as exc:
+        logger.warning(f"Could not fetch weather for plant {plant.id}: {exc}")
+
+    # Prefer live weather over SCADA reading for irradiance/temperature
+    irradiance = (
+        weather.irradiance_w_m2
+        if weather is not None
+        else (latest_scada.irradiance_w_m2 if latest_scada else None)
+    )
+    temperature = (
+        weather.temperature_c
+        if weather is not None
+        else (latest_scada.temperature_c if latest_scada else None)
+    )
 
     # ── Physics layer ─────────────────────────────────────────────────────
     physics_kw = _calculate_physics_power(
