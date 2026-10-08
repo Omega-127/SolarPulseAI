@@ -344,13 +344,30 @@ export default function DashboardPage() {
           {/* ── Forecast chart + alert sidebar ── */}
           <div className="dash-one-third" style={{ marginBottom: "1.5rem" }}>
             <div className="dash-card">
-              <div className="dash-card-title">
-                Yield Forecast
-                {plants.length > 0 && (
-                  <span style={{ marginLeft: "0.5rem", color: "var(--dash-accent)", textTransform: "none", letterSpacing: 0 }}>
-                    — {plants[0].name}
-                  </span>
-                )}
+              <div
+                className="dash-card-title"
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <div>
+                  Yield Forecast
+                  {plants.length > 0 && (
+                    <span style={{ marginLeft: "0.5rem", color: "var(--dash-accent)", textTransform: "none", letterSpacing: 0 }}>
+                      — {plants[0].name}
+                    </span>
+                  )}
+                </div>
+                <Link
+                  href="/dashboard/forecasts"
+                  className="dash-btn dash-btn-ghost"
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "0.2rem 0.55rem",
+                    color: "var(--dash-sun)",
+                    border: "1px solid rgba(240, 168, 50, 0.3)",
+                  }}
+                >
+                  ⚡ P10/P50/P90 & Ramp Risk →
+                </Link>
               </div>
               <ForecastChart records={forecasts} />
             </div>
