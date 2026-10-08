@@ -322,7 +322,7 @@ Model artefacts are versioned under `backend/ml/artifacts/models/` and served vi
 - [x] Core hybrid forecasting engine (pvlib + LightGBM)
 - [x] Inverter clipping & dynamic soiling estimation
 - [x] Forecast-vs-actual anomaly detection with configurable thresholds
-- [ ] Probabilistic P10/P50/P90 forecasting & ramp-risk indicators
+- [x] Probabilistic P10/P50/P90 forecasting & ramp-risk indicators
 - [ ] Co-located BESS charge/discharge optimization
 - [ ] Multi-model ensemble (XGBoost + LightGBM + DeepAR)
 - [ ] Automated root-cause diagnosis from inverter error codes
