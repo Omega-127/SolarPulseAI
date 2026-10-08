@@ -36,9 +36,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown logic."""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    # Tables are created explicitly via init_db() or Alembic — not on every startup.
-    # To initialise for the first time, call:  python -m app.scripts.create_tables
-    logger.info("Database tables are managed via init_db() or Alembic migrations.")
+    # Ensure database tables exist (e.g. SQLite for local dev or PostgreSQL)
+    try:
+        from app.core.database import init_db
+        await init_db()
+        logger.info("Database tables initialized successfully.")
+    except Exception as exc:
+        logger.warning(f"Could not automatically initialize database tables: {exc}")
 
     yield
 
@@ -67,6 +71,7 @@ def create_application() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
