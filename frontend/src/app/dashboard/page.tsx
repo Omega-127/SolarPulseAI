@@ -6,9 +6,11 @@ import {
   alertsApi,
   forecastApi,
   plantsApi,
+  weatherApi,
   type Alert,
   type ForecastRecord,
   type Plant,
+  type WeatherData,
 } from "@/lib/api";
 
 // ── Tiny SVG line chart ────────────────────────────────────────────────────────
@@ -200,6 +202,61 @@ function LegendDot({
   );
 }
 
+// ── Weather widget ─────────────────────────────────────────────────────────────────────
+function WeatherWidget({ weather }: { weather: WeatherData | null }) {
+  if (!weather) {
+    return (
+      <div className="dash-card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div className="dash-card-title">🌤 Current Weather</div>
+        <div className="dash-empty" style={{ padding: "1.5rem 0" }}>Loading weather…</div>
+      </div>
+    );
+  }
+
+  const c = weather.current;
+  const isMock = weather.source === "mock";
+
+  const statRow = (icon: string, label: string, value: string, color?: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0", borderBottom: "1px solid var(--dash-border)" }}>
+      <span style={{ fontSize: "1rem", width: "1.4rem", textAlign: "center", flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: "0.78rem", color: "var(--dash-muted)", flex: 1 }}>{label}</span>
+      <span style={{ fontSize: "0.88rem", fontWeight: 600, color: color ?? "var(--dash-text)" }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="dash-card" style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+        <div className="dash-card-title" style={{ margin: 0 }}>🌤 Current Weather</div>
+        {isMock && (
+          <span className="dash-badge dash-badge-muted" style={{ fontSize: "0.65rem" }}>mock</span>
+        )}
+      </div>
+
+      <div style={{ marginBottom: "0.75rem" }}>
+        <div style={{ fontSize: "1.65rem", fontWeight: 700, color: "var(--dash-sun)", lineHeight: 1 }}>
+          {c.temperature_c.toFixed(1)}°C
+        </div>
+        <div style={{ fontSize: "0.8rem", color: "var(--dash-muted)", marginTop: "0.2rem" }}>
+          {c.condition} • {weather.location_name}
+        </div>
+      </div>
+
+      {statRow("☀️", "Irradiance", `${c.irradiance_w_m2.toFixed(0)} W/m²`, "var(--dash-sun)")}
+      {statRow("💧", "Humidity", `${c.humidity_pct.toFixed(0)}%`)}
+      {statRow("☁️", "Cloud Cover", `${c.cloud_cover_pct.toFixed(0)}%`)}
+      {statRow("💨", "Wind", `${c.wind_speed_kph.toFixed(1)} km/h`)}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0" }}>
+        <span style={{ fontSize: "1rem", width: "1.4rem", textAlign: "center", flexShrink: 0 }}>🔆</span>
+        <span style={{ fontSize: "0.78rem", color: "var(--dash-muted)", flex: 1 }}>UV Index</span>
+        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: c.uv_index >= 6 ? "var(--dash-warning)" : "var(--dash-text)" }}>
+          {c.uv_index.toFixed(1)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── Alert row ─────────────────────────────────────────────────────────────────
 function AlertRow({
   alert,
@@ -233,6 +290,7 @@ export default function DashboardPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -244,10 +302,14 @@ export default function DashboardPage() {
       setPlants(p);
       setAlerts(a);
 
-      // Load forecasts for the first plant if available
+      // Load forecasts and weather for the first plant if available
       if (p.length > 0) {
-        const fc = await forecastApi.list(p[0].id, 48);
+        const [fc, wx] = await Promise.all([
+          forecastApi.list(p[0].id, 48),
+          weatherApi.current(p[0].id).catch(() => null),
+        ]);
         setForecasts(fc);
+        setWeather(wx);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -341,8 +403,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── Forecast chart + alert sidebar ── */}
-          <div className="dash-one-third" style={{ marginBottom: "1.5rem" }}>
+          {/* ── Forecast chart + weather + alert sidebar ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: "1.25rem", marginBottom: "1.5rem" }}>
+            {/* Left: chart */}
             <div className="dash-card">
               <div
                 className="dash-card-title"
@@ -372,27 +435,31 @@ export default function DashboardPage() {
               <ForecastChart records={forecasts} />
             </div>
 
-            <div className="dash-card">
-              <div className="dash-card-title">Recent Alerts</div>
-              {openAlerts.length === 0 ? (
-                <div className="dash-empty" style={{ padding: "1.5rem 0" }}>
-                  No open alerts 🎉
-                </div>
-              ) : (
-                <div className="dash-alert-list">
-                  {openAlerts.slice(0, 6).map((a) => (
-                    <AlertRow key={a.id} alert={a} onResolve={handleResolve} />
-                  ))}
-                </div>
-              )}
-              {openAlerts.length > 6 && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <Link href="/dashboard/alerts" className="dash-btn dash-btn-ghost" style={{ fontSize: "0.8rem" }}>
-                    View all {openAlerts.length} alerts →
-                  </Link>
-                </div>
-              )}
-            </div>
+            {/* Right: weather widget */}
+            <WeatherWidget weather={weather} />
+          </div>
+
+          {/* ── Alert panel ── */}
+          <div className="dash-card" style={{ marginBottom: "1.5rem" }}>
+            <div className="dash-card-title">Recent Alerts</div>
+            {openAlerts.length === 0 ? (
+              <div className="dash-empty" style={{ padding: "1.5rem 0" }}>
+                No open alerts 🎉
+              </div>
+            ) : (
+              <div className="dash-alert-list">
+                {openAlerts.slice(0, 6).map((a) => (
+                  <AlertRow key={a.id} alert={a} onResolve={handleResolve} />
+                ))}
+              </div>
+            )}
+            {openAlerts.length > 6 && (
+              <div style={{ marginTop: "0.75rem" }}>
+                <Link href="/dashboard/alerts" className="dash-btn dash-btn-ghost" style={{ fontSize: "0.8rem" }}>
+                  View all {openAlerts.length} alerts →
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* ── Plants ── */}

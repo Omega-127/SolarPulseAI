@@ -213,6 +213,29 @@ export interface Alert {
   created_at: string;
 }
 
+export interface WeatherPoint {
+  timestamp: string;
+  temperature_c: number;
+  humidity_pct: number;
+  wind_speed_kph: number;
+  cloud_cover_pct: number;
+  uv_index: number;
+  irradiance_w_m2: number;
+  condition: string;
+  is_day: boolean;
+}
+
+export interface WeatherData {
+  latitude: number;
+  longitude: number;
+  location_name: string;
+  timezone_id: string;
+  fetched_at: string;
+  source: string;
+  current: WeatherPoint;
+  hourly_forecast?: WeatherPoint[];
+}
+
 // ── Plant endpoints ────────────────────────────────────────────────────────────
 
 export const plantsApi = {
@@ -258,6 +281,15 @@ export const alertsApi = {
     apiFetch<Alert>(`/api/v1/alerts/${alertId}/resolve`, {
       method: "PATCH",
     }),
+};
+
+// ── Weather endpoints ──────────────────────────────────────────────────────────
+
+export const weatherApi = {
+  current: (plantId: number) =>
+    apiFetch<WeatherData>(`/api/v1/weather/${plantId}/current`),
+  forecast: (plantId: number, days = 3) =>
+    apiFetch<WeatherData>(`/api/v1/weather/${plantId}/forecast?days=${days}`),
 };
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────
