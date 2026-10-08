@@ -47,19 +47,36 @@ export function RegisterForm() {
         const errorData = await res.json().catch(() => null);
         const detail = errorData?.detail;
         const errorMsg = Array.isArray(detail)
-          ? detail.map((d: any) => d.msg).join(", ")
+          ? detail.map((d: { msg: string }) => d.msg).join(", ")
           : detail || "Registration failed. Please try again.";
         setError(errorMsg);
         setPending(false);
         return;
       }
 
-      setMessage("Account created successfully! You can now log in.");
-      setName("");
-      setEmail("");
-      setPassword("");
-      setConfirm("");
-    } catch (err) {
+      // Auto-login after successful registration
+      setMessage("Account created! Signing you in…");
+      const params = new URLSearchParams();
+      params.append("username", email.trim());
+      params.append("password", password);
+      const loginRes = await fetch(`${apiUrl}/api/v1/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
+      if (loginRes.ok) {
+        const loginData = await loginRes.json();
+        if (typeof window !== "undefined") {
+          localStorage.setItem("solarpulse_access_token", loginData.access_token);
+          localStorage.setItem("solarpulse_refresh_token", loginData.refresh_token);
+          localStorage.setItem("solarpulse_user", email.trim());
+        }
+        setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+      } else {
+        setMessage("Account created! Please log in.");
+        setTimeout(() => { window.location.href = "/login"; }, 1500);
+      }
+    } catch {
       setError(
         "Could not connect to the backend server. Please verify that FastAPI is running on http://localhost:8000.",
       );

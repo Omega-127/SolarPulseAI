@@ -46,9 +46,9 @@ export function LoginForm() {
 
       setMessage("Login successful! Redirecting…");
       setTimeout(() => {
-        window.location.href = "/";
+        window.location.href = "/dashboard";
       }, 1000);
-    } catch (err) {
+    } catch {
       setError(
         "Could not connect to the backend server. Please verify FastAPI is running on http://localhost:8000.",
       );
