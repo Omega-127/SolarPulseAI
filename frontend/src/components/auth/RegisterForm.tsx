@@ -24,12 +24,48 @@ export function RegisterForm() {
       return;
     }
 
-    // Prototype UI — wire to FastAPI user registration when the API is available.
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    setMessage(
-      "Registration form is ready. Connect the FastAPI auth routes to create real accounts.",
-    );
-    setPending(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // Generate clean username from email or name
+      const emailPrefix = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      const username = emailPrefix.length >= 3 ? emailPrefix : (name.replace(/\s+/g, "") || "user").padEnd(3, "0");
+
+      const res = await fetch(`${apiUrl}/api/v1/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          email: email.trim(),
+          password,
+          full_name: name.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const detail = errorData?.detail;
+        const errorMsg = Array.isArray(detail)
+          ? detail.map((d: any) => d.msg).join(", ")
+          : detail || "Registration failed. Please try again.";
+        setError(errorMsg);
+        setPending(false);
+        return;
+      }
+
+      setMessage("Account created successfully! You can now log in.");
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirm("");
+    } catch (err) {
+      setError(
+        "Could not connect to the backend server. Please verify that FastAPI is running on http://localhost:8000.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
