@@ -19,7 +19,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routes import auth, plants, forecast, anomaly, alerts
+from app.api.v1.routes import auth, plants, forecast, anomaly, alerts, weather
 from app.api.websockets.scada_ws import scada_ws_handler
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
@@ -88,6 +88,7 @@ def create_application() -> FastAPI:
     app.include_router(forecast.router, prefix=api_prefix)
     app.include_router(anomaly.router, prefix=api_prefix)
     app.include_router(alerts.router, prefix=api_prefix)
+    app.include_router(weather.router, prefix=api_prefix)
 
     # ── WebSocket ─────────────────────────────────────────────────────────────
     @app.websocket("/ws/scada/{plant_id}")
