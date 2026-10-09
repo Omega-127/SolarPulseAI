@@ -1,19 +1,15 @@
 """
 app/scripts/seed_data.py
 
-Seeds the database with demo roles, an admin user, and 7 real large-scale
+Seeds the database with demo roles, an admin user, and 3 real large-scale
 Indian solar plants with realistic configurations, 48-hour forecast curves,
 SCADA telemetry, and anomaly alerts.
 
 Plants seeded
 -------------
-1. Bhadla Solar Park – Block A        (Rajasthan,  2,245 MW site)
-2. Pavagada Solar Park – Sector 2     (Karnataka,  2,050 MW site)
+1. Bhadla Solar Park - Block A        (Rajasthan,  2,245 MW site)
+2. Pavagada Solar Park - Sector 2     (Karnataka,  2,050 MW site)
 3. Kamuthi Solar Power Project        (Tamil Nadu,   648 MW site)
-4. Rewa Ultra Mega Solar – Phase 1    (M.P.,         750 MW site)
-5. Charanka Solar Park – Cluster A    (Gujarat,      600 MW site)
-6. NP Kunta Ultra Mega Solar          (Andhra Pradesh, 900 MW site)
-7. Adani Mundra Solar Park            (Gujarat,      40 MW site)
 
 Usage:
     python -m app.scripts.seed_data
@@ -51,9 +47,9 @@ def generate_diurnal_power(hour_float: float, peak_kw: float) -> float:
 # ── Real Indian solar plant definitions ───────────────────────────────────────
 
 DEMO_PLANTS = [
-    # ── 1. Bhadla Solar Park – Block A (Rajasthan) ───────────────────────────
+    # ── 1. Bhadla Solar Park - Block A (Rajasthan) ───────────────────────────
     dict(
-        name="Bhadla Solar Park – Block A",
+        name="Bhadla Solar Park - Block A",
         location="Phalodi, Rajasthan, India",
         latitude=27.5385,
         longitude=71.9161,
@@ -77,9 +73,9 @@ DEMO_PLANTS = [
                  hours_ago=5.0, resolved=False),
         ],
     ),
-    # ── 2. Pavagada Solar Park – Sector 2 (Karnataka) ────────────────────────
+    # ── 2. Pavagada Solar Park - Sector 2 (Karnataka) ────────────────────────
     dict(
-        name="Pavagada Solar Park – Sector 2",
+        name="Pavagada Solar Park - Sector 2",
         location="Tumakuru, Karnataka, India",
         latitude=14.1030,
         longitude=77.2794,
@@ -125,94 +121,6 @@ DEMO_PLANTS = [
                  hours_ago=26.0, resolved=True),
         ],
     ),
-    # ── 4. Rewa Ultra Mega Solar – Phase 1 (Madhya Pradesh) ──────────────────
-    dict(
-        name="Rewa Ultra Mega Solar – Phase 1",
-        location="Rewa, Madhya Pradesh, India",
-        latitude=24.5362,
-        longitude=81.3036,
-        timezone="Asia/Kolkata",
-        capacity_kw=250_000.0,
-        inverter_capacity_kw=225_000.0,
-        module_count=750_000,
-        config=dict(tilt=24.0, azimuth=180.0, efficiency=0.198,
-                    soiling_threshold=5.0, clipping_threshold=95.0,
-                    forecast_horizon_minutes=60),
-        peak_gen_kw=228_000.0,
-        base_temp_c=36.0,
-        alerts=[
-            dict(alert_type="shortfall", severity="CRITICAL",
-                 message="Grid feeder fault — 45 MW offline, restoration in progress",
-                 expected=220_000.0, actual=175_000.0, deviation=20.45,
-                 hours_ago=0.5, resolved=False),
-        ],
-    ),
-    # ── 5. Charanka Solar Park – Cluster A (Gujarat) ──────────────────────────
-    dict(
-        name="Charanka Solar Park – Cluster A",
-        location="Patan, Gujarat, India",
-        latitude=23.8614,
-        longitude=71.1825,
-        timezone="Asia/Kolkata",
-        capacity_kw=600_000.0,
-        inverter_capacity_kw=540_000.0,
-        module_count=2_200_000,
-        config=dict(tilt=22.0, azimuth=180.0, efficiency=0.192,
-                    soiling_threshold=4.8, clipping_threshold=95.0,
-                    forecast_horizon_minutes=60),
-        peak_gen_kw=540_000.0,
-        base_temp_c=40.0,
-        alerts=[
-            dict(alert_type="soiling", severity="WARNING",
-                 message="Dust storm (sandstorm) event — estimated 22% soiling loss across Cluster A",
-                 expected=510_000.0, actual=397_800.0, deviation=22.0,
-                 hours_ago=4.0, resolved=False),
-        ],
-    ),
-    # ── 6. NP Kunta Ultra Mega Solar (Andhra Pradesh) ─────────────────────────
-    dict(
-        name="NP Kunta Ultra Mega Solar",
-        location="Nandyal, Andhra Pradesh, India",
-        latitude=15.4769,
-        longitude=78.4832,
-        timezone="Asia/Kolkata",
-        capacity_kw=900_000.0,
-        inverter_capacity_kw=810_000.0,
-        module_count=3_200_000,
-        config=dict(tilt=16.0, azimuth=180.0, efficiency=0.200,
-                    soiling_threshold=4.5, clipping_threshold=95.5,
-                    forecast_horizon_minutes=60),
-        peak_gen_kw=820_000.0,
-        base_temp_c=35.0,
-        alerts=[
-            dict(alert_type="shortfall", severity="INFO",
-                 message="Scheduled transformer maintenance — 3 inverter stations offline",
-                 expected=800_000.0, actual=740_000.0, deviation=7.5,
-                 hours_ago=1.0, resolved=False),
-        ],
-    ),
-    # ── 7. Adani Mundra Solar Park (Gujarat) ──────────────────────────────────
-    dict(
-        name="Adani Mundra Solar Park",
-        location="Kutch, Gujarat, India",
-        latitude=22.7754,
-        longitude=69.6669,
-        timezone="Asia/Kolkata",
-        capacity_kw=40_000.0,
-        inverter_capacity_kw=36_000.0,
-        module_count=100_000,
-        config=dict(tilt=22.0, azimuth=180.0, efficiency=0.196,
-                    soiling_threshold=5.2, clipping_threshold=94.5,
-                    forecast_horizon_minutes=60),
-        peak_gen_kw=36_500.0,
-        base_temp_c=37.0,
-        alerts=[
-            dict(alert_type="clipping", severity="INFO",
-                 message="Mild clipping event on coastal inverter bank — sea-breeze cooling sufficient",
-                 expected=37_000.0, actual=36_000.0, deviation=2.7,
-                 hours_ago=0.75, resolved=True),
-        ],
-    ),
 ]
 
 
@@ -252,7 +160,11 @@ async def seed() -> None:
 
         for idx, pd in enumerate(DEMO_PLANTS):
             plant = await session.scalar(
-                select(Plant).where(Plant.name == pd["name"])
+                select(Plant).where(
+                    (Plant.name == pd["name"])
+                    | (Plant.name == pd["name"].replace(" - ", " – "))
+                    | (Plant.name == pd["name"].replace(" – ", " - "))
+                )
             )
 
             if not plant:
@@ -368,7 +280,7 @@ async def seed() -> None:
                 logger.info(f"    → {len(alert_batch)} alerts")
 
         await session.commit()
-        logger.info("✅ Seeding complete — 7 Indian solar plants ready.")
+        logger.info("✅ Seeding complete — 3 Indian solar plants ready.")
 
 
 if __name__ == "__main__":

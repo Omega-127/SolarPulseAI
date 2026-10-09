@@ -63,7 +63,7 @@ A live anomaly engine then compares these deliverable forecasts against real SCA
 | **Dynamic Soiling Estimation** | Models particulate buildup losses from time-since-rain and cleaning logs; rain events trigger automatic recovery. |
 | **Anomaly Detection** | Continuously compares deliverable forecast vs. live SCADA. Configurable thresholds generate operational alerts. |
 | **Live Weather Integration** | Real-time meteorological telemetry & multi-day hourly forecasts via WeatherAPI.com matched to plant latitude & longitude, with graceful physics-based offline mock fallback. |
-| **Real Indian Solar Parks Dataset** | Pre-seeded with 7 flagship Indian solar installations (Bhadla, Pavagada, Kamuthi, Rewa, Charanka, NP Kunta, Adani Mundra) with realistic SCADA, 48h forecasts, and alerts. |
+| **Real Indian Solar Parks Dataset** | Pre-seeded with 3 flagship Indian solar installations (Bhadla, Pavagada, Kamuthi) with realistic SCADA, 48h forecasts, and alerts. |
 
 ### Enhancements (Advanced / Optional)
 
@@ -300,17 +300,13 @@ The React / Next.js dashboard provides:
 
 ## 🇮🇳 Real Indian Solar Parks Dataset
 
-SolarPulse AI includes a pre-seeded database with 7 landmark utility-scale solar parks across India's key climatic and renewable energy corridors:
+SolarPulse AI includes a pre-seeded database with 3 landmark utility-scale solar parks across India's key climatic and renewable energy corridors:
 
 | Plant Name | State | Coordinates | Capacity | Region Profile |
 |---|---|---|---|---|
 | **Bhadla Solar Park (Block A)** | Rajasthan | 27.5387° N, 71.9161° E | 50.0 MW | Thar Desert (extreme GHI, intense soiling) |
 | **Pavagada Solar Park (Sector 2)** | Karnataka | 14.1017° N, 77.2764° E | 25.0 MW | Semi-arid Deccan plateau (sustained clear sky) |
 | **Kamuthi Solar Power Station** | Tamil Nadu | 9.3524° N, 78.3962° E | 30.0 MW | Southern coastal fringe (humid, monsoon cycles) |
-| **Rewa Ultra Mega Solar (Unit 1)** | Madhya Pradesh | 24.5028° N, 81.3392° E | 20.0 MW | Central plateau (seasonal cloud variation) |
-| **Charanka Solar Park (Plot 4)** | Gujarat | 23.9056° N, 71.2014° E | 15.0 MW | Rann of Kutch transition (high ambient heat) |
-| **NP Kunta Ultra Mega Solar** | Andhra Pradesh | 14.1500° N, 78.2667° E | 25.0 MW | Rayalaseema arid zone (low rainfall, clear skies) |
-| **Adani Mundra Solar Plant** | Gujarat | 22.8390° N, 69.7214° E | 20.0 MW | Coastal Gulf of Kutch (marine aerosols & wind) |
 
 Each seeded plant features:
 - Realistic physical specifications (module types, inverter capacity, tilt & azimuth)
