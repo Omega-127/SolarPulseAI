@@ -86,3 +86,40 @@ class ProbabilisticForecastResponse(BaseModel):
     model_name: str
     points: List[ProbabilisticForecastPoint]
     summary: RampRiskSummarySchema
+
+
+class OnlineAdapterStatusResponse(BaseModel):
+    """
+    Real-time status of the OnlineResidualAdapter for a plant.
+
+    Returned by GET /api/v1/forecast/{plant_id}/online-status.
+    """
+
+    plant_id: str = Field(..., description="Solar plant identifier")
+    scaling_factor: float = Field(
+        ...,
+        description="Current multiplicative correction γ applied to base forecasts (1.0 = no correction)",
+    )
+    bias_kw: float = Field(
+        ..., description="Current additive residual bias tracked by the adapter (kW)"
+    )
+    samples_observed_today: int = Field(
+        ..., description="Number of SCADA telemetry readings processed by the adapter"
+    )
+    recent_rmse_kw: float = Field(
+        ..., description="Running RMSE of prediction residuals (kW)"
+    )
+    status: str = Field(
+        ...,
+        description=(
+            "Adapter status label: "
+            "BASELINE_OPTIMAL | ADAPTING_SOILING_HAZE | ADAPTING_ABOVE_NWP"
+        ),
+    )
+    last_updated: Optional[str] = Field(
+        default=None,
+        description="ISO-8601 UTC timestamp of the most recent adapter update",
+    )
+    alpha: float = Field(..., description="Exponential smoothing learning rate")
+    decay_factor: float = Field(..., description="Per-step horizon decay factor λ")
+

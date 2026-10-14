@@ -2,9 +2,11 @@
 app/api/v1/routes/forecast.py
 
 Forecast endpoints:
-  GET /api/v1/forecast/{plant_id}
-  GET /api/v1/forecast/{plant_id}/summary
+  GET  /api/v1/forecast/{plant_id}
+  GET  /api/v1/forecast/{plant_id}/summary
+  GET  /api/v1/forecast/{plant_id}/online-status
   POST /api/v1/forecast/{plant_id}/generate   (trigger on-demand forecast)
+  GET  /api/v1/forecast/{plant_id}/probabilistic
 """
 
 from __future__ import annotations
@@ -12,15 +14,35 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_active_user, get_db
 from app.models.user import User
-from app.schemas.forecast import ForecastResponse, ForecastSummary, ProbabilisticForecastResponse
+from app.schemas.forecast import (
+    ForecastResponse,
+    ForecastSummary,
+    OnlineAdapterStatusResponse,
+    ProbabilisticForecastResponse,
+)
 from app.services import forecast_service, plant_service
 
 router = APIRouter(prefix="/forecast", tags=["Forecast"])
+
+# ── Lazy registry accessor ──────────────────────────────────────────────────
+
+_registry = None
+
+
+def _get_registry():
+    global _registry
+    if _registry is None:
+        try:
+            from backend.ml.serving.model_registry import ModelRegistry
+        except ImportError:
+            from ml.serving.model_registry import ModelRegistry  # type: ignore
+        _registry = ModelRegistry()
+    return _registry
 
 
 @router.get(
@@ -95,3 +117,27 @@ async def get_probabilistic_forecast(
     return await forecast_service.generate_probabilistic_forecast(
         db, plant=plant, config=config, horizon_minutes=horizon_minutes, interval_minutes=interval_minutes
     )
+
+
+@router.get(
+    "/{plant_id}/online-status",
+    response_model=OnlineAdapterStatusResponse,
+    summary="Get real-time online adapter status for a plant (scaling factor, bias, RMSE)",
+    tags=["Forecast", "Online Learning"],
+)
+async def get_online_adapter_status(
+    plant_id: int,
+    _: User = Depends(get_current_active_user),
+) -> OnlineAdapterStatusResponse:
+    """
+    Returns the live state of the OnlineResidualAdapter for a plant:
+    - **scaling_factor** (gamma): multiplicative correction applied to base forecasts.
+    - **bias_kw**: additive offset tracked by the adapter.
+    - **samples_observed_today**: number of SCADA readings processed.
+    - **recent_rmse_kw**: running RMSE of prediction residuals.
+    - **status**: `BASELINE_OPTIMAL` | `ADAPTING_SOILING_HAZE` | `ADAPTING_ABOVE_NWP`.
+    """
+    registry = _get_registry()
+    adapter = registry.get_online_adapter(str(plant_id))
+    status_dict = adapter.get_status()
+    return OnlineAdapterStatusResponse(**status_dict)
