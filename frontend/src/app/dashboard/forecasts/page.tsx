@@ -9,11 +9,13 @@ import {
   type ProbabilisticForecastResponse,
 } from "@/lib/api";
 import ProbabilisticBandChart from "@/components/forecast/ProbabilisticBandChart";
+import ForecastActualChart from "@/components/forecast/ForecastActualChart";
+import OnlineAdapterChip from "@/components/forecast/OnlineAdapterChip";
 
 export default function ForecastsPage() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [selectedPlantId, setSelectedPlantId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"probabilistic" | "history">("probabilistic");
+  const [activeTab, setActiveTab] = useState<"probabilistic" | "adaptive" | "history">("probabilistic");
 
   const [horizonMinutes, setHorizonMinutes] = useState<number>(240);
   const [intervalMinutes, setIntervalMinutes] = useState<number>(15);
@@ -125,12 +127,19 @@ export default function ForecastsPage() {
 
   return (
     <>
-      <div className="dash-page-header">
-        <p className="dash-eyebrow">Forecasting</p>
-        <h1 className="dash-section-title">Forecasts</h1>
-        <p className="dash-page-sub">
-          Quantile bands (P10 / P50 / P90), ramp risk, and point history.
-        </p>
+      <div className="dash-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <p className="dash-eyebrow">Forecasting</p>
+          <h1 className="dash-section-title">Forecasts</h1>
+          <p className="dash-page-sub">
+            Quantile bands (P10 / P50 / P90), Tier-2 online adaptation, and historical telemetry.
+          </p>
+        </div>
+        {selectedPlantId && (
+          <div style={{ marginTop: "0.25rem" }}>
+            <OnlineAdapterChip plantId={selectedPlantId} />
+          </div>
+        )}
       </div>
 
       {error && <div className="dash-error">{error}</div>}
@@ -142,6 +151,13 @@ export default function ForecastsPage() {
           onClick={() => setActiveTab("probabilistic")}
         >
           Probabilistic & ramp
+        </button>
+        <button
+          type="button"
+          className={`dash-tab${activeTab === "adaptive" ? " active" : ""}`}
+          onClick={() => setActiveTab("adaptive")}
+        >
+          Adaptive clearness & drift
         </button>
         <button
           type="button"
@@ -473,6 +489,157 @@ export default function ForecastsPage() {
               </div>
             </>
           )}
+        </>
+      )}
+
+      {activeTab === "adaptive" && (
+        <>
+          {/* Expanded Online Learning & Residual Adapter Status Widget */}
+          <div style={{ marginBottom: "1.5rem" }}>
+            <OnlineAdapterChip plantId={selectedPlantId} expanded />
+          </div>
+
+          {/* Base vs Corrected vs Actual Forecast Overlay Chart */}
+          <div className="dash-card" style={{ marginBottom: "1.5rem" }}>
+            <div className="dash-card-title">
+              <span>
+                Adaptive Clearness & Drift Overlay
+                <span
+                  className="dash-page-sub"
+                  style={{
+                    display: "block",
+                    marginTop: "0.25rem",
+                    textTransform: "none",
+                    letterSpacing: 0,
+                    fontWeight: 400,
+                    fontSize: "0.82rem",
+                  }}
+                >
+                  Comparing Frozen Base LightGBM (dashed), Real-time Adapted Forecast (solid green), and Actual SCADA (amber).
+                </span>
+              </span>
+              <span className="dash-badge dash-badge-accent">Two-Tier Hybrid</span>
+            </div>
+
+            {loadingFc ? (
+              <div className="dash-loading" style={{ padding: "3rem 1rem" }}>
+                <div className="dash-spinner" />
+                <div>Loading adaptive telemetry...</div>
+              </div>
+            ) : sortedForecasts.length === 0 ? (
+              <div className="dash-empty" style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
+                No forecast telemetry recorded for this plant yet. Click &quot;Generate forecast&quot; to initialize.
+              </div>
+            ) : (
+              <ForecastActualChart
+                records={sortedForecasts}
+                capacityKw={selectedPlant?.capacity_kw}
+                height={300}
+                showControls
+              />
+            )}
+          </div>
+
+          {/* Telemetry Residual Breakdown Table */}
+          <div className="dash-card" style={{ padding: 0 }}>
+            <div style={{ padding: "1.1rem 1.25rem 0.75rem", borderBottom: "1px solid var(--line)" }}>
+              <h2
+                style={{
+                  fontFamily: "var(--font-display), sans-serif",
+                  fontSize: "1.05rem",
+                  fontWeight: 700,
+                  margin: 0,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Real-Time Residual Calibration Log
+              </h2>
+              <p className="dash-page-sub" style={{ marginTop: "0.25rem" }}>
+                Step-by-step transparency into Tier-1 LightGBM predictions vs Tier-2 Residual Adapter corrections.
+              </p>
+            </div>
+
+            <div className="dash-table-wrap">
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Base LightGBM</th>
+                    <th>Real-time Trim (Δ)</th>
+                    <th>Online Adapted</th>
+                    <th>Actual SCADA</th>
+                    <th>Tracking Error</th>
+                    <th>Model State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedForecasts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: "center", color: "var(--dash-muted)", padding: "2rem" }}>
+                        No calibration log points recorded.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedForecasts.map((r) => {
+                      const base = r.ml_power_kw ?? r.predicted_power_kw;
+                      const adapted = r.predicted_power_kw;
+                      const delta = adapted - base;
+                      const deltaPct = base > 0 ? (delta / base) * 100 : 0;
+                      const errorKw = r.actual_power_kw != null ? r.actual_power_kw - adapted : null;
+
+                      return (
+                        <tr key={`adapt-row-${r.id}`}>
+                          <td className="nowrap">{new Date(r.forecast_time).toLocaleString()}</td>
+                          <td className="nowrap" style={{ color: "#4a5568", fontFamily: "monospace" }}>
+                            {base.toFixed(2)} kW
+                          </td>
+                          <td
+                            className="nowrap"
+                            style={{
+                              color: delta < -0.05 ? "var(--sun)" : delta > 0.05 ? "var(--field)" : "var(--dash-muted)",
+                              fontWeight: 600,
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} kW{" "}
+                            <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+                              ({deltaPct >= 0 ? `+${deltaPct.toFixed(1)}` : deltaPct.toFixed(1)}%)
+                            </span>
+                          </td>
+                          <td className="nowrap" style={{ color: "var(--field)", fontWeight: 700, fontFamily: "monospace" }}>
+                            {adapted.toFixed(2)} kW
+                          </td>
+                          <td className="nowrap" style={{ fontFamily: "monospace" }}>
+                            {r.actual_power_kw != null ? (
+                              <span style={{ color: "var(--sun)", fontWeight: 600 }}>
+                                {r.actual_power_kw.toFixed(2)} kW
+                              </span>
+                            ) : (
+                              <span style={{ color: "var(--dash-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td className="nowrap" style={{ fontFamily: "monospace" }}>
+                            {errorKw != null ? (
+                              <span style={{ color: Math.abs(errorKw) > 50 ? "var(--danger)" : "var(--dash-muted)" }}>
+                                {errorKw >= 0 ? `+${errorKw.toFixed(1)}` : errorKw.toFixed(1)} kW
+                              </span>
+                            ) : (
+                              <span style={{ color: "var(--dash-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="dash-badge dash-badge-muted">
+                              {r.model_name}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </>
       )}
 

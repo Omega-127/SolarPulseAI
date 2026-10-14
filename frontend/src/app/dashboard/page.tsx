@@ -12,183 +12,9 @@ import {
   type Plant,
   type WeatherData,
 } from "@/lib/api";
+import ForecastActualChart from "@/components/forecast/ForecastActualChart";
+import OnlineAdapterChip from "@/components/forecast/OnlineAdapterChip";
 
-function ForecastChart({ records }: { records: ForecastRecord[] }) {
-  if (records.length < 2) {
-    return (
-      <div className="dash-empty" style={{ padding: "2rem 0" }}>
-        No forecast data yet — run a forecast on a plant to populate this chart.
-      </div>
-    );
-  }
-
-  const W = 800;
-  const H = 200;
-  const PAD = { top: 10, right: 16, bottom: 36, left: 52 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-
-  const sorted = [...records].sort(
-    (a, b) =>
-      new Date(a.forecast_time).getTime() - new Date(b.forecast_time).getTime()
-  );
-
-  const values = sorted.map((r) => r.predicted_power_kw);
-  const minV = Math.min(0, ...values);
-  const maxV = Math.max(...values, 1);
-
-  const xScale = (i: number) => PAD.left + (i / (sorted.length - 1)) * innerW;
-  const yScale = (v: number) =>
-    PAD.top + innerH - ((v - minV) / (maxV - minV)) * innerH;
-
-  const predictedPath = sorted
-    .map((r, i) => `${i === 0 ? "M" : "L"}${xScale(i)},${yScale(r.predicted_power_kw)}`)
-    .join(" ");
-
-  const actualPath = sorted
-    .reduce<string[]>((acc, r, i) => {
-      if (r.actual_power_kw != null) {
-        acc.push(`${acc.length === 0 ? "M" : "L"}${xScale(i)},${yScale(r.actual_power_kw)}`);
-      }
-      return acc;
-    }, [] as string[])
-    .join(" ");
-
-  const firstX = xScale(0);
-  const lastX = xScale(sorted.length - 1);
-  const baseY = yScale(minV);
-  const areaPath = `${predictedPath} L${lastX},${baseY} L${firstX},${baseY} Z`;
-
-  const step = Math.max(1, Math.floor(sorted.length / 6));
-  const xLabels = sorted
-    .filter((_, i) => i % step === 0 || i === sorted.length - 1)
-    .map((r) => {
-      const idx = sorted.indexOf(r);
-      const d = new Date(r.forecast_time);
-      const label = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-      return { x: xScale(idx), label };
-    });
-
-  const yTicks = 4;
-  const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => {
-    const v = minV + ((maxV - minV) * i) / yTicks;
-    return { y: yScale(v), label: v.toFixed(0) };
-  });
-
-  return (
-    <div className="dash-chart-wrap">
-      <svg
-        className="dash-chart-svg"
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--field)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--field)" stopOpacity="0.01" />
-          </linearGradient>
-        </defs>
-
-        {yLabels.map(({ y, label }) => (
-          <g key={label}>
-            <line
-              x1={PAD.left}
-              y1={y}
-              x2={W - PAD.right}
-              y2={y}
-              stroke="var(--line)"
-              strokeWidth="1"
-            />
-            <text
-              x={PAD.left - 6}
-              y={y + 4}
-              textAnchor="end"
-              fontSize="10"
-              fill="var(--muted)"
-            >
-              {label}
-            </text>
-          </g>
-        ))}
-
-        {xLabels.map(({ x, label }) => (
-          <text
-            key={label + x}
-            x={x}
-            y={H - 6}
-            textAnchor="middle"
-            fontSize="10"
-            fill="var(--muted)"
-          >
-            {label}
-          </text>
-        ))}
-
-        <line
-          x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={H - PAD.bottom}
-          stroke="var(--line)" strokeWidth="1"
-        />
-        <line
-          x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom}
-          stroke="var(--line)" strokeWidth="1"
-        />
-
-        <path d={areaPath} fill="url(#areaGrad)" />
-        <path
-          d={predictedPath}
-          fill="none"
-          stroke="var(--field)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {actualPath && (
-          <path
-            d={actualPath}
-            fill="none"
-            stroke="var(--sun)"
-            strokeWidth="1.5"
-            strokeDasharray="4 3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-      </svg>
-
-      <div className="dash-legend">
-        <LegendDot color="var(--field)" label="Predicted (kW)" />
-        <LegendDot color="var(--sun)" label="Actual (kW)" dashed />
-      </div>
-    </div>
-  );
-}
-
-function LegendDot({
-  color,
-  label,
-  dashed,
-}: {
-  color: string;
-  label: string;
-  dashed?: boolean;
-}) {
-  return (
-    <div className="dash-legend-item">
-      <svg width="20" height="10">
-        <line
-          x1="0"
-          y1="5"
-          x2="20"
-          y2="5"
-          stroke={color}
-          strokeWidth="2"
-          strokeDasharray={dashed ? "4 3" : "none"}
-        />
-      </svg>
-      <span>{label}</span>
-    </div>
-  );
-}
 
 function WeatherWidget({ weather }: { weather: WeatherData | null }) {
   if (!weather) {
@@ -450,11 +276,19 @@ export default function DashboardPage() {
                     <span style={{ fontSize: "0.72rem", color: "var(--dash-muted)" }}>Loading…</span>
                   )}
                 </div>
-                <Link href="/dashboard/forecasts" className="dash-btn dash-btn-ghost dash-btn-sm">
-                  Probabilistic view
-                </Link>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                  <OnlineAdapterChip plantId={selectedPlantId ?? (plants[0]?.id || null)} />
+                  <Link href="/dashboard/forecasts" className="dash-btn dash-btn-ghost dash-btn-sm">
+                    Forecast detail →
+                  </Link>
+                </div>
               </div>
-              <ForecastChart records={forecasts} />
+              <ForecastActualChart
+                records={forecasts}
+                capacityKw={plants.find((p) => p.id === (selectedPlantId ?? plants[0]?.id))?.capacity_kw}
+                height={220}
+                showControls
+              />
             </div>
 
             <WeatherWidget weather={weather} />

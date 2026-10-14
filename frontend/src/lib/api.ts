@@ -198,6 +198,18 @@ export interface ProbabilisticForecastResponse {
   summary: RampRiskSummary;
 }
 
+export interface OnlineAdapterStatus {
+  plant_id: string;
+  scaling_factor: number;
+  bias_kw: number;
+  samples_observed_today: number;
+  recent_rmse_kw: number;
+  status: "BASELINE_OPTIMAL" | "ADAPTING_SOILING_HAZE" | "ADAPTING_ABOVE_NWP" | string;
+  last_updated: string | null;
+  alpha: number;
+  decay_factor: number;
+}
+
 export interface Alert {
   id: number;
   plant_id: number;
@@ -317,6 +329,8 @@ export const forecastApi = {
     apiFetch<ProbabilisticForecastResponse>(
       `/api/v1/forecast/${plantId}/probabilistic?horizon_minutes=${horizonMinutes}&interval_minutes=${intervalMinutes}`
     ),
+  getOnlineStatus: (plantId: number | string) =>
+    apiFetch<OnlineAdapterStatus>(`/api/v1/forecast/${plantId}/online-status`),
 };
 
 // ── Alert endpoints ────────────────────────────────────────────────────────────

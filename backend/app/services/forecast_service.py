@@ -50,6 +50,27 @@ try:
 except ImportError:
     from ml.postprocessing.ramp_risk import compute_ramp_risk_profile
 
+# ── Online Residual Adapter (Phase 2 — ONLINE_LEARNING_SPEC.md §6.2–6.3) ─────
+try:
+    from backend.ml.serving.model_registry import ModelRegistry as _ModelRegistry
+except ImportError:
+    from ml.serving.model_registry import _ModelRegistry  # type: ignore
+
+_model_registry: Optional["_ModelRegistry"] = None
+
+
+def _get_registry() -> "_ModelRegistry":
+    """Lazy singleton accessor for the ModelRegistry."""
+    global _model_registry
+    if _model_registry is None:
+        try:
+            from backend.ml.serving.model_registry import ModelRegistry
+        except ImportError:
+            from ml.serving.model_registry import ModelRegistry  # type: ignore
+        _model_registry = ModelRegistry()
+    return _model_registry
+
+
 logger = get_logger(__name__)
 
 # ── pvlib import (graceful if unavailable) ────────────────────────────────────
@@ -301,30 +322,49 @@ async def generate_forecast(
     }
 
     ml_kw, model_name = _ml_prediction(features, plant.capacity_kw)
+    base_power_kw = ml_kw   # raw Tier-1 prediction before online correction
+
+    # ── Online Residual Adapter (Tier 2 correction) ──────────────────────────
+    try:
+        registry = _get_registry()
+        adapter = registry.get_online_adapter(str(plant.id))
+        # Single-step correction: adjust the scalar prediction (step 0 = immediate)
+        adjusted_arr = adapter.adjust_forecast(
+            y_pred_base=np.array([base_power_kw]),
+            step_horizons=np.array([0.0]),
+        )
+        adapted_kw = float(adjusted_arr[0])
+        online_adjustment_kw = round(adapted_kw - base_power_kw, 4)
+        final_kw = adapted_kw
+    except Exception as exc:
+        logger.warning("Online adapter step failed, using raw ML prediction: %s", exc)
+        online_adjustment_kw = 0.0
+        final_kw = base_power_kw
 
     # Confidence interval (simple ±10% for now)
-    confidence_margin = ml_kw * 0.10
-    confidence_lower = max(0.0, ml_kw - confidence_margin)
-    confidence_upper = min(plant.capacity_kw, ml_kw + confidence_margin)
+    confidence_margin = final_kw * 0.10
+    confidence_lower = max(0.0, final_kw - confidence_margin)
+    confidence_upper = min(plant.capacity_kw, final_kw + confidence_margin)
 
     record = ForecastRecord(
         plant_id=plant.id,
         forecast_time=forecast_time,
         generated_at=datetime.now(tz=timezone.utc),
-        predicted_power_kw=round(ml_kw, 4),
+        predicted_power_kw=round(final_kw, 4),
         confidence_lower=round(confidence_lower, 4),
         confidence_upper=round(confidence_upper, 4),
         model_name=model_name,
-        model_version="1.0",
+        model_version="1.1",
         physics_power_kw=round(physics_kw, 4),
-        ml_power_kw=round(ml_kw, 4),
+        ml_power_kw=round(base_power_kw, 4),   # raw base-model value for transparency
     )
     db.add(record)
     await db.commit()
     await db.refresh(record)
     logger.info(
         f"Forecast generated: plant={plant.id} model={model_name} "
-        f"predicted={ml_kw:.2f} kW at {forecast_time.isoformat()}"
+        f"base={base_power_kw:.2f} kW online_adj={online_adjustment_kw:+.2f} kW "
+        f"final={final_kw:.2f} kW at {forecast_time.isoformat()}"
     )
     return record
 
