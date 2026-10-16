@@ -64,7 +64,7 @@ export default function ForecastActualChart({
   if (!sortedRecords || sortedRecords.length < 2) {
     return (
       <div className="dash-empty" style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
-        Insufficient forecast records to render comparison. Run or generate a forecast to populate data.
+        Need at least two forecast points to draw the comparison. Generate another forecast to continue.
       </div>
     );
   }
@@ -228,7 +228,7 @@ export default function ForecastActualChart({
                   borderRadius: 2,
                 }}
               />
-              Online Corrected (Tier-2)
+              Adapted forecast
             </label>
 
             <label
@@ -255,7 +255,7 @@ export default function ForecastActualChart({
                   borderTop: "2px dashed #718096",
                 }}
               />
-              Base LightGBM (Tier-1)
+              Base forecast
             </label>
 
             <label
@@ -282,7 +282,7 @@ export default function ForecastActualChart({
                   backgroundColor: "var(--sun)",
                 }}
               />
-              Actual SCADA Telemetry
+              Actual output
             </label>
 
             <label
@@ -300,13 +300,12 @@ export default function ForecastActualChart({
                 checked={showDelta}
                 onChange={(e) => setShowDelta(e.target.checked)}
               />
-              Highlight Residual Band
+              Show adjustment band
             </label>
           </div>
 
-          {/* Quick Delta indicator */}
           <div style={{ fontSize: "0.78rem", color: "var(--dash-muted)" }}>
-            Avg Real-time Trim:{" "}
+            Avg adjustment:{" "}
             <span
               style={{
                 fontWeight: 700,
@@ -317,9 +316,9 @@ export default function ForecastActualChart({
             </span>
             {deltaSummary.maeAdapted != null && deltaSummary.maeBase != null && (
               <span style={{ marginLeft: "0.75rem" }}>
-                MAE: <strong>{deltaSummary.maeAdapted.toFixed(1)} kW</strong>{" "}
+                Avg error after adapt: <strong>{deltaSummary.maeAdapted.toFixed(1)} kW</strong>{" "}
                 <span style={{ fontSize: "0.7rem", color: "var(--dash-muted)" }}>
-                  (vs Base {deltaSummary.maeBase.toFixed(1)} kW)
+                  (base was {deltaSummary.maeBase.toFixed(1)} kW)
                 </span>
               </span>
             )}
@@ -541,17 +540,17 @@ export default function ForecastActualChart({
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", color: "var(--field)", fontWeight: 600 }}>
-              <span>Adapted (Tier-2):</span>
+              <span>Adapted:</span>
               <span>{activeCorrected.toFixed(1)} kW</span>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", color: "#4a5568", marginTop: "0.15rem" }}>
-              <span>Base LightGBM:</span>
+              <span>Base:</span>
               <span>{activeBase.toFixed(1)} kW</span>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", color: activeDelta < 0 ? "var(--sun)" : "var(--field)", marginTop: "0.15rem", fontWeight: 600 }}>
-              <span>Real-time Trim:</span>
+              <span>Adjustment:</span>
               <span>
                 {activeDelta >= 0 ? `+${activeDelta.toFixed(1)}` : activeDelta.toFixed(1)} kW ({activeDeltaPct >= 0 ? `+${activeDeltaPct.toFixed(1)}` : activeDeltaPct.toFixed(1)}%)
               </span>
@@ -559,12 +558,12 @@ export default function ForecastActualChart({
 
             {activeActual != null ? (
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", color: "var(--sun)", fontWeight: 700, marginTop: "0.25rem", borderTop: "1px dashed var(--line)", paddingTop: "0.2rem" }}>
-                <span>Actual SCADA:</span>
+                <span>Actual:</span>
                 <span>{activeActual.toFixed(1)} kW</span>
               </div>
             ) : (
               <div style={{ color: "var(--dash-muted)", fontSize: "0.7rem", marginTop: "0.2rem" }}>
-                No actual reading yet
+                No measured reading yet
               </div>
             )}
           </div>

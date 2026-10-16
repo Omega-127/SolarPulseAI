@@ -132,10 +132,10 @@ export default function ForecastsPage() {
           <p className="dash-eyebrow">Forecasting</p>
           <h1 className="dash-section-title">Forecasts</h1>
           <p className="dash-page-sub">
-            Quantile bands (P10 / P50 / P90), Tier-2 online adaptation, and historical telemetry.
+            Probabilistic bands, live online learning from SCADA, and point forecast history.
           </p>
         </div>
-        {selectedPlantId && (
+        {selectedPlantId && activeTab !== "adaptive" && (
           <div style={{ marginTop: "0.25rem" }}>
             <OnlineAdapterChip plantId={selectedPlantId} />
           </div>
@@ -157,7 +157,7 @@ export default function ForecastsPage() {
           className={`dash-tab${activeTab === "adaptive" ? " active" : ""}`}
           onClick={() => setActiveTab("adaptive")}
         >
-          Adaptive clearness & drift
+          Online learning
         </button>
         <button
           type="button"
@@ -494,16 +494,35 @@ export default function ForecastsPage() {
 
       {activeTab === "adaptive" && (
         <>
-          {/* Expanded Online Learning & Residual Adapter Status Widget */}
+          <div className="dash-advisory" style={{ borderLeftColor: "var(--field)", marginBottom: "1.25rem" }}>
+            <div className="dash-advisory-title">What is online learning?</div>
+            <div className="dash-advisory-body">
+              Weather-based forecasts can miss local haze, dust on panels, or inverter drift. Online
+              learning watches live SCADA power and applies a small, bounded correction on top of the
+              frozen ML model so the next few hours stay closer to what the plant is actually producing.
+              The base model is never overwritten — only a fast residual trim updates.
+            </div>
+            <ul className="online-learning-howto">
+              <li>
+                <strong>Base forecast</strong> — the trained ML prediction from weather and plant physics.
+              </li>
+              <li>
+                <strong>Adapted forecast</strong> — base prediction after the live clearness/bias trim.
+              </li>
+              <li>
+                <strong>Actual</strong> — measured AC power from SCADA, used to learn the next correction.
+              </li>
+            </ul>
+          </div>
+
           <div style={{ marginBottom: "1.5rem" }}>
             <OnlineAdapterChip plantId={selectedPlantId} expanded />
           </div>
 
-          {/* Base vs Corrected vs Actual Forecast Overlay Chart */}
           <div className="dash-card" style={{ marginBottom: "1.5rem" }}>
             <div className="dash-card-title">
               <span>
-                Adaptive Clearness & Drift Overlay
+                Base vs adapted vs actual
                 <span
                   className="dash-page-sub"
                   style={{
@@ -515,20 +534,22 @@ export default function ForecastsPage() {
                     fontSize: "0.82rem",
                   }}
                 >
-                  Comparing Frozen Base LightGBM (dashed), Real-time Adapted Forecast (solid green), and Actual SCADA (amber).
+                  Dashed gray is the frozen base model. Solid green is the live-adjusted forecast.
+                  Amber is measured plant output.
                 </span>
               </span>
-              <span className="dash-badge dash-badge-accent">Two-Tier Hybrid</span>
+              <span className="dash-badge dash-badge-green">Live correction</span>
             </div>
 
             {loadingFc ? (
               <div className="dash-loading" style={{ padding: "3rem 1rem" }}>
                 <div className="dash-spinner" />
-                <div>Loading adaptive telemetry...</div>
+                <div>Loading forecast comparison…</div>
               </div>
             ) : sortedForecasts.length === 0 ? (
               <div className="dash-empty" style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
-                No forecast telemetry recorded for this plant yet. Click &quot;Generate forecast&quot; to initialize.
+                No forecasts yet for this plant. Use &quot;Generate forecast&quot; above to start the
+                comparison.
               </div>
             ) : (
               <ForecastActualChart
@@ -540,7 +561,6 @@ export default function ForecastsPage() {
             )}
           </div>
 
-          {/* Telemetry Residual Breakdown Table */}
           <div className="dash-card" style={{ padding: 0 }}>
             <div style={{ padding: "1.1rem 1.25rem 0.75rem", borderBottom: "1px solid var(--line)" }}>
               <h2
@@ -552,10 +572,11 @@ export default function ForecastsPage() {
                   letterSpacing: "-0.02em",
                 }}
               >
-                Real-Time Residual Calibration Log
+                Correction log
               </h2>
               <p className="dash-page-sub" style={{ marginTop: "0.25rem" }}>
-                Step-by-step transparency into Tier-1 LightGBM predictions vs Tier-2 Residual Adapter corrections.
+                Each row shows how much the live adapter changed the base forecast, and how close the
+                adapted value was to measured power.
               </p>
             </div>
 
@@ -563,20 +584,20 @@ export default function ForecastsPage() {
               <table className="dash-table">
                 <thead>
                   <tr>
-                    <th>Timestamp</th>
-                    <th>Base LightGBM</th>
-                    <th>Real-time Trim (Δ)</th>
-                    <th>Online Adapted</th>
-                    <th>Actual SCADA</th>
-                    <th>Tracking Error</th>
-                    <th>Model State</th>
+                    <th>Time</th>
+                    <th>Base forecast</th>
+                    <th>Adjustment</th>
+                    <th>Adapted</th>
+                    <th>Actual</th>
+                    <th>Error after adapt</th>
+                    <th>Model</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedForecasts.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ textAlign: "center", color: "var(--dash-muted)", padding: "2rem" }}>
-                        No calibration log points recorded.
+                        No correction points yet.
                       </td>
                     </tr>
                   ) : (
