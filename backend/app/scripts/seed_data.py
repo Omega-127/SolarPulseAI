@@ -19,7 +19,7 @@ import asyncio
 import math
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.database import AsyncSessionLocal, init_db
 from app.core.logging import get_logger
@@ -211,88 +211,84 @@ async def seed() -> None:
             else:
                 logger.info(f"  Existing plant [{plant.id}]: {plant.name}")
 
-            # ── Forecast records (48 h window) ────────────────────────────────
-            existing_fc = await session.scalar(
-                select(ForecastRecord.id).where(ForecastRecord.plant_id == plant.id)
+            # ── Forecast records — always refresh so timestamps stay current ─
+            await session.execute(
+                delete(ForecastRecord).where(ForecastRecord.plant_id == plant.id)
             )
-            if not existing_fc:
-                peak_kw = pd["peak_gen_kw"]
-                fc_batch = []
-                for i in range(-24, 25):
-                    t = now + timedelta(hours=i)
-                    hour_val = t.hour + t.minute / 60.0
-                    pred = generate_diurnal_power(hour_val, peak_kw)
-                    noise = math.sin(i * 1.5 + idx) * peak_kw * 0.018
-                    actual = (
-                        round(pred * 0.96 + noise, 2)
-                        if i <= 0 and pred > 0
-                        else (0.0 if i <= 0 else None)
-                    )
-                    fc_batch.append(ForecastRecord(
-                        plant_id=plant.id,
-                        forecast_time=t,
-                        generated_at=now - timedelta(hours=24),
-                        predicted_power_kw=pred,
-                        actual_power_kw=actual,
-                        confidence_lower=round(max(0.0, pred * 0.88), 2),
-                        confidence_upper=round(pred * 1.08, 2),
-                        model_name="SolarPulse-Hybrid-Ensemble",
-                        model_version="2.1.0",
-                        physics_power_kw=round(pred * 0.98, 2),
-                        ml_power_kw=pred,
-                    ))
-                session.add_all(fc_batch)
-                logger.info(f"    → {len(fc_batch)} forecast records")
+            peak_kw = pd["peak_gen_kw"]
+            fc_batch = []
+            for i in range(-24, 25):
+                t = now + timedelta(hours=i)
+                hour_val = t.hour + t.minute / 60.0
+                pred = generate_diurnal_power(hour_val, peak_kw)
+                noise = math.sin(i * 1.5 + idx) * peak_kw * 0.018
+                actual = (
+                    round(pred * 0.96 + noise, 2)
+                    if i <= 0 and pred > 0
+                    else (0.0 if i <= 0 else None)
+                )
+                fc_batch.append(ForecastRecord(
+                    plant_id=plant.id,
+                    forecast_time=t,
+                    generated_at=now,
+                    predicted_power_kw=pred,
+                    actual_power_kw=actual,
+                    confidence_lower=round(max(0.0, pred * 0.88), 2),
+                    confidence_upper=round(pred * 1.08, 2),
+                    model_name="SolarPulse-Hybrid-Ensemble",
+                    model_version="2.1.0",
+                    physics_power_kw=round(pred * 0.98, 2),
+                    ml_power_kw=pred,
+                ))
+            session.add_all(fc_batch)
+            logger.info(f"    → {len(fc_batch)} forecast records (refreshed)")
 
-            # ── SCADA telemetry (last 3 hours, every 10 min) ─────────────────
-            existing_scada = await session.scalar(
-                select(ScadaReading.id).where(ScadaReading.plant_id == plant.id)
+            # ── SCADA telemetry — always refresh so timestamps stay current ──
+            await session.execute(
+                delete(ScadaReading).where(ScadaReading.plant_id == plant.id)
             )
-            if not existing_scada:
-                base_temp = pd["base_temp_c"]
-                peak_kw = pd["peak_gen_kw"]
-                scada_batch = []
-                for m in range(0, 180, 10):
-                    t = now - timedelta(minutes=m)
-                    h = t.hour + t.minute / 60.0
-                    gen = generate_diurnal_power(h, peak_kw)
-                    irr = round(gen / (peak_kw / 850.0) + 15.0, 1) if gen > 0 else 0.0
-                    scada_batch.append(ScadaReading(
-                        plant_id=plant.id,
-                        timestamp=t,
-                        power_kw=gen,
-                        irradiance_w_m2=irr,
-                        temperature_c=base_temp + (2.0 if gen > 0 else -4.0),
-                        wind_speed_m_s=3.2 + idx * 0.3,
-                        module_temperature_c=base_temp + 12.0 if gen > 0 else base_temp - 6.0,
-                        inverter_power_kw=round(gen * 0.985, 2),
-                        expected_power_kw=gen,
-                    ))
-                session.add_all(scada_batch)
-                logger.info(f"    → {len(scada_batch)} SCADA readings")
+            base_temp = pd["base_temp_c"]
+            scada_batch = []
+            for m in range(0, 180, 10):
+                t = now - timedelta(minutes=m)
+                h = t.hour + t.minute / 60.0
+                gen = generate_diurnal_power(h, peak_kw)
+                irr = round(gen / (peak_kw / 850.0) + 15.0, 1) if gen > 0 else 0.0
+                scada_batch.append(ScadaReading(
+                    plant_id=plant.id,
+                    timestamp=t,
+                    power_kw=gen,
+                    irradiance_w_m2=irr,
+                    temperature_c=base_temp + (2.0 if gen > 0 else -4.0),
+                    wind_speed_m_s=3.2 + idx * 0.3,
+                    module_temperature_c=base_temp + 12.0 if gen > 0 else base_temp - 6.0,
+                    inverter_power_kw=round(gen * 0.985, 2),
+                    expected_power_kw=gen,
+                ))
+            session.add_all(scada_batch)
+            logger.info(f"    → {len(scada_batch)} SCADA readings (refreshed)")
 
-            # ── Alerts ────────────────────────────────────────────────────────
-            existing_alerts = await session.scalar(
-                select(AnomalyAlert.id).where(AnomalyAlert.plant_id == plant.id)
+            # ── Alerts — always refresh so timestamps stay current ──────────
+            await session.execute(
+                delete(AnomalyAlert).where(AnomalyAlert.plant_id == plant.id)
             )
-            if not existing_alerts:
-                alert_batch = []
-                for ad in pd["alerts"]:
-                    alert_batch.append(AnomalyAlert(
-                        plant_id=plant.id,
-                        timestamp=now - timedelta(hours=ad["hours_ago"]),
-                        alert_type=ad["alert_type"],
-                        severity=ad["severity"],
-                        message=ad["message"],
-                        expected_power_kw=ad["expected"],
-                        actual_power_kw=ad["actual"],
-                        deviation_percent=ad["deviation"],
-                        is_resolved=ad["resolved"],
-                        resolved_at=(now - timedelta(hours=ad["hours_ago"] - 1)
-                                     if ad["resolved"] else None),
-                    ))
-                session.add_all(alert_batch)
-                logger.info(f"    → {len(alert_batch)} alerts")
+            alert_batch = []
+            for ad in pd["alerts"]:
+                alert_batch.append(AnomalyAlert(
+                    plant_id=plant.id,
+                    timestamp=now - timedelta(hours=ad["hours_ago"]),
+                    alert_type=ad["alert_type"],
+                    severity=ad["severity"],
+                    message=ad["message"],
+                    expected_power_kw=ad["expected"],
+                    actual_power_kw=ad["actual"],
+                    deviation_percent=ad["deviation"],
+                    is_resolved=ad["resolved"],
+                    resolved_at=(now - timedelta(hours=ad["hours_ago"] - 1)
+                                 if ad["resolved"] else None),
+                ))
+            session.add_all(alert_batch)
+            logger.info(f"    → {len(alert_batch)} alerts (refreshed)")
 
         await session.commit()
         logger.info("✅ Seeding complete — 3 Indian solar plants ready.")

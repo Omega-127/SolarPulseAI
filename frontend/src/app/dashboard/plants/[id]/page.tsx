@@ -397,7 +397,7 @@ export default function PlantDetailPage({
 
       <div className="dash-split">
         <div className="dash-card">
-          <div className="dash-card-title">48-hour yield forecast</div>
+          <div className="dash-card-title">Yield forecast vs actuals</div>
           <ForecastChart records={forecasts} />
         </div>
 
