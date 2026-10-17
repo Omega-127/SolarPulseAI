@@ -1226,9 +1226,7 @@ select.dash-input {
 }
 
 .online-adapter-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed;
   width: min(360px, calc(100vw - 2rem));
   z-index: 999;
   background: var(--panel);
