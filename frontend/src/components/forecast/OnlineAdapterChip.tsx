@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { forecastApi, type OnlineAdapterStatus } from "@/lib/api";
 
 interface OnlineAdapterChipProps {
@@ -70,6 +71,9 @@ export default function OnlineAdapterChip({
   const [error, setError] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  const chipRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const fetchStatus = useCallback(
     async (isSilent = false) => {
@@ -97,6 +101,45 @@ export default function OnlineAdapterChip({
     const interval = setInterval(() => fetchStatus(true), 30000);
     return () => clearInterval(interval);
   }, [plantId, fetchStatus]);
+
+  const updatePopoverPosition = useCallback(() => {
+    const chip = chipRef.current;
+    if (!chip) return;
+
+    const rect = chip.getBoundingClientRect();
+    const gap = 8;
+    const width = Math.min(360, window.innerWidth - 32);
+    const estimatedHeight = popoverRef.current?.offsetHeight ?? 280;
+
+    let left = rect.right - width;
+    left = Math.max(16, Math.min(left, window.innerWidth - width - 16));
+
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const openAbove = spaceBelow < estimatedHeight && rect.top > spaceBelow;
+    const top = openAbove
+      ? Math.max(16, rect.top - estimatedHeight - gap)
+      : rect.bottom + gap;
+
+    setPopoverPos({ top, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isDetailsOpen) {
+      setPopoverPos(null);
+      return;
+    }
+    updatePopoverPosition();
+    // Re-measure after paint so flip-above uses the real popover height.
+    const raf = requestAnimationFrame(() => updatePopoverPosition());
+    const onReposition = () => updatePopoverPosition();
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [isDetailsOpen, updatePopoverPosition, status, error]);
 
   if (!plantId) return null;
 
@@ -248,9 +291,91 @@ export default function OnlineAdapterChip({
     );
   }
 
+  const popover =
+    isDetailsOpen &&
+    typeof document !== "undefined" &&
+    createPortal(
+      <>
+        <div
+          className="online-adapter-popover-backdrop"
+          onClick={() => setIsDetailsOpen(false)}
+          aria-hidden
+        />
+        <div
+          ref={popoverRef}
+          className="online-adapter-popover"
+          role="dialog"
+          aria-label="Live forecast adjustment"
+          style={
+            popoverPos
+              ? { top: popoverPos.top, left: popoverPos.left, right: "auto" }
+              : { visibility: "hidden", top: 0, left: 0, right: "auto" }
+          }
+        >
+          <div className="online-adapter-popover-head">
+            <span>Live forecast adjustment</span>
+            <button
+              type="button"
+              onClick={() => setIsDetailsOpen(false)}
+              className="online-adapter-popover-close"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          {error && (
+            <div className="online-adapter-notice" style={{ marginBottom: "0.65rem" }}>
+              {error}
+            </div>
+          )}
+
+          <p className="online-adapter-popover-desc">
+            Corrects near-term forecasts from live plant readings when weather models miss haze,
+            soiling, or efficiency drift.
+          </p>
+          <p className="online-adapter-status-desc" style={{ marginBottom: "0.75rem" }}>
+            {modeConfig.description}
+          </p>
+
+          <div className="online-adapter-popover-grid">
+            <div>
+              <div className="online-adapter-metric-label">Multiplier</div>
+              <div style={{ fontWeight: 700, color: modeConfig.color, fontSize: "1rem" }}>
+                {gamma.toFixed(3)}× ({pctLabel})
+              </div>
+            </div>
+            <div>
+              <div className="online-adapter-metric-label">Bias</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem" }}>
+                {biasKw >= 0 ? `+${biasKw.toFixed(1)}` : biasKw.toFixed(1)} kW
+              </div>
+            </div>
+            <div>
+              <div className="online-adapter-metric-label">Recent error</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem" }}>{rmse.toFixed(1)} kW</div>
+            </div>
+            <div>
+              <div className="online-adapter-metric-label">Samples today</div>
+              <div style={{ fontWeight: 700, fontSize: "1rem" }}>{samples}</div>
+            </div>
+          </div>
+
+          <p
+            className="online-adapter-footnote"
+            style={{ marginTop: "0.75rem", borderTop: "1px solid var(--line)", paddingTop: "0.5rem" }}
+          >
+            Open the Online learning tab for the full comparison chart and calibration log.
+          </p>
+        </div>
+      </>,
+      document.body
+    );
+
   return (
     <div className={`online-adapter-chip-container ${className}`}>
       <button
+        ref={chipRef}
         type="button"
         onClick={() => setIsDetailsOpen((prev) => !prev)}
         className="online-adapter-chip"
@@ -285,69 +410,7 @@ export default function OnlineAdapterChip({
         </span>
       </button>
 
-      {isDetailsOpen && (
-        <>
-          <div
-            className="online-adapter-popover-backdrop"
-            onClick={() => setIsDetailsOpen(false)}
-            aria-hidden
-          />
-          <div className="online-adapter-popover" role="dialog" aria-label="Live forecast adjustment">
-            <div className="online-adapter-popover-head">
-              <span>Live forecast adjustment</span>
-              <button
-                type="button"
-                onClick={() => setIsDetailsOpen(false)}
-                className="online-adapter-popover-close"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            {error && (
-              <div className="online-adapter-notice" style={{ marginBottom: "0.65rem" }}>
-                {error}
-              </div>
-            )}
-
-            <p className="online-adapter-popover-desc">
-              Corrects near-term forecasts from live plant readings when weather models miss haze,
-              soiling, or efficiency drift.
-            </p>
-            <p className="online-adapter-status-desc" style={{ marginBottom: "0.75rem" }}>
-              {modeConfig.description}
-            </p>
-
-            <div className="online-adapter-popover-grid">
-              <div>
-                <div className="online-adapter-metric-label">Multiplier</div>
-                <div style={{ fontWeight: 700, color: modeConfig.color, fontSize: "1rem" }}>
-                  {gamma.toFixed(3)}× ({pctLabel})
-                </div>
-              </div>
-              <div>
-                <div className="online-adapter-metric-label">Bias</div>
-                <div style={{ fontWeight: 700, fontSize: "1rem" }}>
-                  {biasKw >= 0 ? `+${biasKw.toFixed(1)}` : biasKw.toFixed(1)} kW
-                </div>
-              </div>
-              <div>
-                <div className="online-adapter-metric-label">Recent error</div>
-                <div style={{ fontWeight: 700, fontSize: "1rem" }}>{rmse.toFixed(1)} kW</div>
-              </div>
-              <div>
-                <div className="online-adapter-metric-label">Samples today</div>
-                <div style={{ fontWeight: 700, fontSize: "1rem" }}>{samples}</div>
-              </div>
-            </div>
-
-            <p className="online-adapter-footnote" style={{ marginTop: "0.75rem", borderTop: "1px solid var(--line)", paddingTop: "0.5rem" }}>
-              Open the Online learning tab for the full comparison chart and calibration log.
-            </p>
-          </div>
-        </>
-      )}
+      {popover}
     </div>
   );
 }
